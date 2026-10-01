@@ -525,6 +525,13 @@ window.Ink = (() => {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+    } else if (item === "beret") {
+      ctx.fillStyle = "#b3261e";
+      ctx.beginPath();
+      ctx.ellipse(cx + face * 3, top + 1, 17, 7, face * 0.15, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx + face * 3, top - 6); ctx.lineTo(cx + face * 5, top - 11); ctx.stroke();
     } else if (item === "capuche") {
       ctx.fillStyle = "#2b2731";
       ctx.beginPath();
@@ -561,6 +568,9 @@ window.Ink = (() => {
       if (item === "braises") {
         ctx.fillStyle = i % 2 ? "#e0662f" : "#e9b04a";
         ctx.beginPath(); ctx.arc(x, y, 2.4, 0, TAU); ctx.fill();
+      } else if (item === "taches") {
+        ctx.fillStyle = ["#e0662f", "#3e7cb1", "#5b8c5a", "#d36b9c", "#e9b04a"][i];
+        ctx.beginPath(); ctx.ellipse(x, cy + 18 + i % 2 * 4, 4 - p * 2, 2.5, 0, 0, TAU); ctx.fill();
       } else if (item === "sablier") {
         // du sable noir qui s'écoule vers le bas
         const yy = cy - 4 + p * 40;

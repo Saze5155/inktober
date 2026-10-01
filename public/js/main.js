@@ -24,7 +24,7 @@
   };
 
   // action spéciale du jour sur un autre Enxor (touche F), seulement le jour du vestige
-  const DAY_ACTIONS = { 1: { verb: "Mordre", sound: "bite" }, 2: { verb: "Cracher du feu sur", sound: "flame" } };
+  const DAY_ACTIONS = { 1: { verb: "Mordre" }, 2: { verb: "Cracher du feu sur" }, 3: { verb: "Peindre" } };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
 
@@ -131,8 +131,9 @@
     });
     socket.on("fx", ({ type, from, to }) => {
       S.fx.push({ type, from, to, t: performance.now() / 1000 });
-      Sound.play(type === "bite" ? "bite" : "flame", from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
-      if (to === S.me?.id) toast(type === "bite" ? `${S.players.get(from)?.pseudo} t'a mordu·e ! 🩸` : `${S.players.get(from)?.pseudo} t'a roussi·e ! 🔥`);
+      Sound.play({ bite: "bite", flame: "flame", paint: "splash" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
+      const who = S.players.get(from)?.pseudo;
+      if (to === S.me?.id) toast({ bite: `${who} t'a mordu·e ! 🩸`, flame: `${who} t'a roussi·e ! 🔥`, paint: `${who} t'a repeint·e ! 🎨` }[type]);
     });
     socket.on("lg:state", (s) => Werewolf.onState(s));
     socket.on("lg:you", (y) => Werewolf.onYou(y));
@@ -818,6 +819,19 @@
         }
         ctx.globalAlpha = Math.max(0, 1 - age);
         Ink.word(ctx, "CROC !", b.x, b.y - 70 * scale - age * 20, 18, "#b3261e", 800);
+      } else if (f.type === "paint") {
+        const colors = ["#e0662f", "#3e7cb1", "#5b8c5a", "#d36b9c", "#e9b04a", "#7d5ba6"];
+        for (let i = 0; i < 12; i++) {
+          const ang = (i / 12) * Math.PI * 2 + f.t;
+          const d = 10 + Math.min(1, age * 3) * 30;
+          ctx.globalAlpha = Math.max(0, 1 - age * 0.8);
+          ctx.fillStyle = colors[i % colors.length];
+          ctx.beginPath();
+          ctx.ellipse(b.x + Math.cos(ang) * d, b.y - 22 * scale + Math.sin(ang) * d * 0.7, 5, 3.5, ang, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = Math.max(0, 1 - age);
+        Ink.word(ctx, "SPLAF !", b.x, b.y - 70 * scale - age * 20, 18, "#7d5ba6", 800);
       } else {
         for (let k = 0; k < 14; k++) {
           const p = Math.min(1, age * 1.6 + k * 0.03);

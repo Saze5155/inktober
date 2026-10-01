@@ -15,6 +15,8 @@ const COSMETICS = {
   notes: { slot: "aura", name: "Notes de musique" },
   paillettes: { slot: "aura", name: "Paillettes de Prismaelyx" },
   capuche: { slot: "head", name: "Capuche du pèlerin" },
+  beret: { slot: "head", name: "Béret de peintre" },
+  taches: { slot: "aura", name: "Taches de peinture" },
   sablier: { slot: "aura", name: "Sable de Silentis" },
 };
 const SLOTS = ["head", "face", "back", "aura"];
@@ -26,6 +28,8 @@ const TROPHIES = [
   { id: "cinqfreres", day: 2, name: "Les cinq frères", desc: "Rapporter les cinq écailles des dragons de Mythras.", reward: ["cornes"] },
   { id: "souffle", day: 2, name: "Souffle de Vermillax", desc: "3 étoiles à « Les cinq frères ».", reward: ["ailes"] },
   { id: "cracheur", day: 2, name: "Cracheur de feu", desc: "Souffler du feu sur 5 Enxors différents le jour du dragon.", goal: 5, stat: "flames", reward: ["braises"] },
+  { id: "chromatique", day: 3, name: "Œil chromatique", desc: "3 étoiles aux « Couleurs volées » : battre Prismaelyx à son propre jeu.", reward: ["beret"] },
+  { id: "barbouilleur", day: 3, name: "Barbouilleur", desc: "Peindre 5 Enxors différents le jour des couleurs.", goal: 5, stat: "paints", reward: ["taches"] },
   { id: "pecheur", name: "Pêcheur de Rive-Basse", desc: "Pêcher 10 prises dans l'étang.", goal: 10, stat: "catches", reward: ["bob"] },
   { id: "botte", secret: true, name: "Vestige humain", desc: "Pêcher une vieille botte d'humain.", reward: ["botte"] },
   { id: "melomane", name: "Mélomane", desc: "Jouer 40 notes sur les pierres musicales.", goal: 40, stat: "notes", reward: ["notes"] },

@@ -47,7 +47,7 @@ function publicPlayer(p) {
 const trophies = createTrophies({ io, save: () => store.save(), publicPlayer });
 
 // Actions du jour : seulement le jour du vestige correspondant (mordre le jour du vampire…)
-const DAY_ACTIONS = { 1: { stat: "bites", fx: "bite" }, 2: { stat: "flames", fx: "flame" } };
+const DAY_ACTIONS = { 1: { stat: "bites", fx: "bite" }, 2: { stat: "flames", fx: "flame" }, 3: { stat: "paints", fx: "paint" } };
 
 function findByPseudo(pseudo) {
   const key = pseudo.toLowerCase();
@@ -402,6 +402,7 @@ io.on("connection", (socket) => {
     if (day === 1 && stars === 3) trophies.award(p, "enfantnuit");
     if (day === 2) trophies.award(p, "cinqfreres");
     if (day === 2 && stars === 3) trophies.award(p, "souffle");
+    if (day === 3 && stars === 3) trophies.award(p, "chromatique");
     store.save();
     io.emit("player:update", publicPlayer(p));
   });
