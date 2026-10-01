@@ -264,6 +264,8 @@ window.Sound = (() => {
     gavel: (v = 1) => [0, 0.18, 0.36].forEach((d) => { tone({ freq: 180, glide: 90, t: ac.currentTime + d, dur: 0.1, vol: 0.35 * v, type: "triangle" }); noise({ t: ac.currentTime + d, dur: 0.05, vol: 0.2 * v, freq: 2000 }); }),
     reveal: (v = 1) => [62, 58, 55].forEach((n, i) => tone({ freq: midi(n), t: ac.currentTime + i * 0.25, dur: 0.6, vol: 0.12 * v, type: "triangle" })),
     tick: () => tone({ freq: 1400, dur: 0.03, vol: 0.05 }),
+    bite: (v = 1) => { noise({ dur: 0.08, vol: 0.3 * v, freq: 3000, type: "bandpass", q: 2 }); tone({ freq: 140, glide: 70, dur: 0.15, vol: 0.25 * v, type: "triangle" }); noise({ t: ac.currentTime + 0.12, dur: 0.25, vol: 0.08 * v, freq: 700, sweep: 300 }); },
+    flame: (v = 1) => { noise({ dur: 0.7, vol: 0.25 * v, freq: 600, sweep: 2500, type: "bandpass", q: 0.7, attack: 0.05 }); tone({ freq: 90, glide: 60, dur: 0.6, vol: 0.15 * v, type: "sawtooth", filter: 400 }); },
   };
 
   // v : volume relatif (pour les sons à distance), extra : paramètre propre à l'effet

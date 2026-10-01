@@ -238,11 +238,28 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .wall li p { margin: 0 0 8px; line-height: 1.35; overflow-wrap: anywhere; }
 .wall li span { font-size: 13px; color: #6b6170; }
 
+/* ---------- Trophées ---------- */
+
+.trophy-btn { font: inherit; font-weight: 700; color: var(--gold); cursor: pointer; }
+.trophy-btn kbd { font: 11px/1 inherit; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; margin-left: 4px; }
+.wardrobe { display: flex; gap: 16px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+.wear-preview { width: 90px; height: 90px; border-radius: 12px; border: 1px solid var(--line); flex: none; }
+.wear-slots { display: grid; gap: 8px; flex: 1; min-width: 260px; }
+.wear-slots .seg { flex-wrap: wrap; border-radius: 12px; }
+.trophy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.trophy { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 4px; opacity: .75; }
+.trophy.has { opacity: 1; border-color: var(--gold); }
+.trophy.has strong::before { content: "🏆 "; }
+.trophy.secret { border-style: dashed; }
+.trophy p { margin: 0; font-size: 14px; color: var(--muted); }
+.trophy small { color: #c9a27a; font-size: 12px; }
+.trophy em { font-style: normal; font-size: 13px; color: var(--gold); font-weight: 700; }
+
 /* ---------- Loup-garou ---------- */
 
 .lg {
   position: fixed;
-  top: 112px;
+  top: 166px;
   right: 16px;
   width: 290px;
   max-height: calc(100vh - 170px);

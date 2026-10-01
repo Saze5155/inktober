@@ -296,8 +296,10 @@ window.Ink = (() => {
     if (emote === "rire") cx += Math.sin(t * 45) * 1.5;
     if (emote === "coeur") bob += Math.abs(Math.sin(t * 6)) * 3;
     const R = 17, cy = y - 20 - bob;
+    const wear = o.wear || {};
 
     shadow(ctx, x, y, 15 - bob * 0.8, 5, 0.2);
+    wearBack(ctx, wear.back, cx, cy, t, face);
 
     // corps d'encre qui ondule et coule par le bas
     const pts = [];
@@ -320,8 +322,8 @@ window.Ink = (() => {
     ctx.arc(cx - 3, cy - 2, R * 0.65, Math.PI * 1.1, Math.PI * 1.45);
     ctx.stroke();
 
-    // goutte de couleur qui flotte au-dessus de la tête
-    const gy = cy - R - 6 + Math.sin(t * 3 + ph) * 1.5;
+    // goutte de couleur qui flotte au-dessus de la tête (plus haut si on porte un chapeau)
+    const gy = cy - R - 6 - (wear.head ? 16 : 0) + Math.sin(t * 3 + ph) * 1.5;
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(cx, gy - 8);
@@ -352,14 +354,15 @@ window.Ink = (() => {
         ctx.beginPath();
         ctx.ellipse(ex, ey, 4, 5.2, 0, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = o.eyes || INK;
+        const pupil = o.eyes || (wear.face === "yeuxrouges" ? "#b3261e" : null);
+        ctx.fillStyle = pupil || INK;
         ctx.beginPath();
-        ctx.arc(ex + face * 1.5, ey + 0.5, o.eyes ? 2.8 : 2.2, 0, TAU);
+        ctx.arc(ex + face * 1.5, ey + 0.5, pupil ? 2.8 : 2.2, 0, TAU);
         ctx.fill();
       }
     }
 
-    if (fangs) {
+    if (fangs || wear.face === "crocs") {
       ctx.fillStyle = PAPER;
       for (const s of [-1, 1]) {
         const fx = cx + face * 2.5 + s * 3;
@@ -385,6 +388,181 @@ window.Ink = (() => {
       ctx.moveTo(hx + face * 24, hy - 30);
       ctx.lineTo(hx + face * 24, hy - 6 + Math.sin(t * 3) * 2);
       ctx.stroke();
+    }
+    if (wear.back === "echarpe") wearScarf(ctx, cx, cy, t, face);
+    wearHead(ctx, wear.head, cx, cy - R, t, face);
+    wearAura(ctx, wear.aura, cx, cy, t, ph);
+    ctx.restore();
+  }
+
+  // ---------- Décorations (débloquées par les trophées) ----------
+
+  function wearBack(ctx, item, cx, cy, t, face) {
+    if (item === "cape") {
+      const fl = Math.sin(t * 4) * 2;
+      ctx.save();
+      ctx.fillStyle = "#7a1426";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 14, cy - 8);
+      ctx.quadraticCurveTo(cx - 30 - fl, cy + 10, cx - 22, cy + 26);
+      ctx.lineTo(cx + 22, cy + 26);
+      ctx.quadraticCurveTo(cx + 30 + fl, cy + 10, cx + 14, cy - 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // grand col
+      ctx.fillStyle = INK;
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + s * 8, cy - 4);
+        ctx.lineTo(cx + s * 24, cy - 22);
+        ctx.lineTo(cx + s * 16, cy - 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    } else if (item === "ailes") {
+      const flap = Math.sin(t * 6) * 0.25;
+      ctx.save();
+      ctx.fillStyle = "#5a1622";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.6;
+      for (const s of [-1, 1]) {
+        ctx.save();
+        ctx.translate(cx + s * 12, cy - 4);
+        ctx.rotate(s * (0.3 + flap));
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(s * 30, -22);
+        ctx.lineTo(s * 26, -4);
+        ctx.lineTo(s * 34, 2);
+        ctx.lineTo(s * 22, 8);
+        ctx.lineTo(s * 26, 16);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  }
+
+  function wearScarf(ctx, cx, cy, t, face) {
+    ctx.save();
+    ctx.fillStyle = "#e9b04a";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 9, 15, 5, 0, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    const w = Math.sin(t * 5) * 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - face * 8, cy + 10);
+    ctx.lineTo(cx - face * 22, cy + 22 + w);
+    ctx.lineTo(cx - face * 14, cy + 25 + w);
+    ctx.lineTo(cx - face * 3, cy + 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function wearHead(ctx, item, cx, top, t, face) {
+    if (!item) return;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.8;
+    if (item === "cornes") {
+      ctx.fillStyle = "#3b3440";
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + s * 5, top + 4);
+        ctx.quadraticCurveTo(cx + s * 16, top - 6, cx + s * 20, top - 18);
+        ctx.quadraticCurveTo(cx + s * 10, top - 8, cx + s * 11, top + 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (item === "bob") {
+      ctx.fillStyle = "#5b8c5a";
+      ctx.beginPath();
+      ctx.ellipse(cx, top + 2, 19, 5, 0, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 12, top + 1);
+      ctx.quadraticCurveTo(cx - 11, top - 13, cx, top - 13);
+      ctx.quadraticCurveTo(cx + 11, top - 13, cx + 12, top + 1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#e0662f";
+      ctx.beginPath();
+      ctx.moveTo(cx + 6, top - 6); ctx.lineTo(cx + 14, top - 10); ctx.lineTo(cx + 10, top - 3);
+      ctx.fill();
+    } else if (item === "oreilles") {
+      ctx.fillStyle = "#6b6170";
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + s * 4, top + 6);
+        ctx.lineTo(cx + s * 13, top - 14 + Math.sin(t * 3 + s) * 1.5);
+        ctx.lineTo(cx + s * 17, top + 7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (item === "botte") {
+      ctx.fillStyle = "#6b4426";
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, top + 3);
+      ctx.lineTo(cx - 8, top - 18);
+      ctx.lineTo(cx + 4, top - 18);
+      ctx.lineTo(cx + 4, top - 6);
+      ctx.lineTo(cx + 15, top - 4);
+      ctx.lineTo(cx + 15, top + 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (item === "plume") {
+      ctx.fillStyle = "#efe5d0";
+      ctx.save();
+      ctx.translate(cx + face * 8, top + 2);
+      ctx.rotate(face * 0.5 + Math.sin(t * 2) * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(-7, -14, 0, -28);
+      ctx.quadraticCurveTo(7, -14, 0, 0);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -26); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function wearAura(ctx, item, cx, cy, t, ph) {
+    if (!item) return;
+    ctx.save();
+    for (let i = 0; i < 5; i++) {
+      const p = (t * 0.5 + i / 5 + ph) % 1;
+      const x = cx + Math.sin(i * 2.4 + t * 1.3) * 18, y = cy + 14 - p * 46;
+      ctx.globalAlpha = Math.sin(p * Math.PI);
+      if (item === "braises") {
+        ctx.fillStyle = i % 2 ? "#e0662f" : "#e9b04a";
+        ctx.beginPath(); ctx.arc(x, y, 2.4, 0, TAU); ctx.fill();
+      } else if (item === "notes") {
+        word(ctx, "♪", x, y, 12, INK, 700);
+      } else if (item === "paillettes") {
+        ctx.fillStyle = ["#e0662f", "#e9b04a", "#5bb3a0", "#3e7cb1", "#d36b9c"][i];
+        ctx.beginPath();
+        for (let k = 0; k < 8; k++) {
+          const a = (k * Math.PI) / 4, rr = k % 2 ? 1.2 : 3.6;
+          ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        }
+        ctx.fill();
+      }
     }
     ctx.restore();
   }

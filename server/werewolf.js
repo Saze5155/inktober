@@ -35,7 +35,7 @@ function deal(n, options) {
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-module.exports = function createWerewolf(io, { getPlayer, getPos, doorOf }) {
+module.exports = function createWerewolf(io, { getPlayer, getPos, doorOf, onEnd }) {
   let options = Object.fromEntries(OPTIONAL.map((r) => [r, true]));
   let g = fresh([]);
 
@@ -177,6 +177,7 @@ module.exports = function createWerewolf(io, { getPlayer, getPos, doorOf }) {
     if (w === 0) g.winner = "village";
     else if (w >= others) g.winner = "loups";
     if (!g.winner) return false;
+    onEnd?.(g.players, g.winner);
     setPhase("end");
     log(g.winner === "village" ? "Tous les loups ont été démasqués : le village gagne !" : "Les loups sont aussi nombreux que les villageois : les loups gagnent !");
     broadcast();

@@ -8,6 +8,7 @@ const store = require("./store");
 const clock = require("./clock");
 const fish = require("./fish");
 const createWerewolf = require("./werewolf");
+const createTrophies = require("./trophies");
 
 const PORT = Number(process.env.PORT) || 3000;
 const TEAM_CODE = (process.env.TEAM_CODE || "dreamteam").trim();
@@ -35,8 +36,16 @@ app.use("/drawings", express.static(store.DRAW_DIR, { maxAge: "365d", immutable:
 // ---------- Joueurs ----------
 
 function publicPlayer(p) {
-  return { id: p.id, pseudo: p.pseudo, owner: p.owner, plot: p.plot, color: p.color, cabin: p.cabin, drawings: p.drawings, games: p.games || {} };
+  return {
+    id: p.id, pseudo: p.pseudo, owner: p.owner, plot: p.plot, color: p.color, cabin: p.cabin, drawings: p.drawings,
+    games: p.games || {}, wear: p.wear || {}, trophies: Object.keys(p.trophies || {}), stats: p.stats || {},
+  };
 }
+
+const trophies = createTrophies({ io, save: () => store.save(), publicPlayer });
+
+// Actions du jour : seulement le jour du vestige correspondant (mordre le jour du vampire…)
+const DAY_ACTIONS = { 1: { stat: "bites", fx: "bite" }, 2: { stat: "flames", fx: "flame" } };
 
 function findByPseudo(pseudo) {
   const key = pseudo.toLowerCase();
@@ -231,6 +240,14 @@ for (const [radius, count] of [[430, 10], [780, 18]]) {
 const lg = createWerewolf(io, {
   getPlayer: (id) => db.players[id],
   getPos: (id) => online.get(id) || null,
+  onEnd: (players, winner) => {
+    for (const lp of players) {
+      const pl = db.players[lp.id];
+      if (!pl) continue;
+      if (winner === "loups" && lp.role === "loup") trophies.award(pl, "loupalpha");
+      if (winner === "village" && lp.role !== "loup") trophies.award(pl, "sage");
+    }
+  },
   doorOf: (id) => {
     const pl = db.players[id];
     if (!pl) return null;
@@ -263,6 +280,25 @@ io.on("connection", (socket) => {
     fishing: db.fishing,
     lg: lg.publicState(),
     lgYou: lg.privateFor(p.id),
+    catalog: trophies.catalog(),
+  });
+
+  // garde-robe
+  socket.on("wear", (w) => {
+    if (w && trophies.wear(p, w.slot, w.item ?? null)) io.emit("player:update", publicPlayer(p));
+  });
+
+  // action du jour sur un autre Enxor (mordre, cracher du feu…)
+  let lastDayAct = 0;
+  socket.on("dayact", (targetId) => {
+    const action = DAY_ACTIONS[clock.unlockedDays()];
+    const target = online.get(targetId);
+    const now = Date.now();
+    if (!action || !target || targetId === p.id || now - lastDayAct < 1200) return;
+    if (target.zone !== o.zone || Math.hypot(target.x - o.x, target.y - o.y) > 90) return;
+    lastDayAct = now;
+    io.emit("fx", { type: action.fx, from: p.id, to: targetId });
+    trophies.bump(p, action.stat, targetId);
   });
 
   // loup-garou
@@ -289,7 +325,8 @@ io.on("connection", (socket) => {
     if (c.record) db.fishing.records[c.name] = { size: c.size, pseudo: p.pseudo, at: c.at };
     db.fishing.log.unshift(c);
     db.fishing.log.length = Math.min(db.fishing.log.length, 25);
-    p.catches = (p.catches || 0) + 1;
+    trophies.bump(p, "catches");
+    if (c.name.startsWith("Vieille botte")) trophies.award(p, "botte");
     store.save();
     io.emit("fish", { id: p.id, catch: c, fishing: db.fishing });
   });
@@ -301,6 +338,7 @@ io.on("connection", (socket) => {
     if (now - lastNote < 80 || !Number.isInteger(i) || i < 0 || i > 7) return;
     lastNote = now;
     io.emit("note", { id: p.id, i });
+    trophies.bump(p, "notes");
   });
 
   // le mur des mots
@@ -314,6 +352,7 @@ io.on("connection", (socket) => {
     db.wall.length = Math.min(db.wall.length, 60);
     store.save();
     io.emit("wall", db.wall);
+    trophies.bump(p, "posts");
   });
 
   socket.on("move", (pos) => {
@@ -335,6 +374,7 @@ io.on("connection", (socket) => {
     if (now - lastEmote < 400 || !EMOTES.includes(type)) return;
     lastEmote = now;
     io.emit("emote", { id: p.id, type });
+    if (type === "danse") trophies.bump(p, "dances");
   });
 
   socket.on("game:done", (r) => {
@@ -348,6 +388,9 @@ io.on("connection", (socket) => {
     g.stars = Math.max(g.stars, stars);
     g.plays++;
     p.games[day] = g;
+    if (day === 1 && stars === 3) trophies.award(p, "enfantnuit");
+    if (day === 2) trophies.award(p, "cinqfreres");
+    if (day === 2 && stars === 3) trophies.award(p, "souffle");
     store.save();
     io.emit("player:update", publicPlayer(p));
   });

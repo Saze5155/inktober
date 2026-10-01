@@ -19,7 +19,11 @@
     ball: { x: 1500, y: 1580, z: 0, tx: 1500, ty: 1580, tz: 0 },
     pops: [], sparks: [], fireflies: [], sky: { dark: 0, dusk: 0 }, skyAt: -1, lastBurst: 0,
     act: null, fish: null, wall: [], fishing: { records: {}, log: [] }, stoneGlow: [], lastStone: -1, crows: [], stepT: 0,
+    catalog: { cosmetics: {}, slots: [], trophies: [] }, fx: [], dayTarget: null, lastDayAct: 0,
   };
+
+  // action spéciale du jour sur un autre Enxor (touche F), seulement le jour du vestige
+  const DAY_ACTIONS = { 1: { verb: "Mordre", sound: "bite" }, 2: { verb: "Cracher du feu sur", sound: "flame" } };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
 
@@ -60,12 +64,12 @@
     try { localStorage.setItem(AUTH_KEY, JSON.stringify(a)); } catch { /* navigation privée */ }
   }
 
-  function toast(text) {
+  function toast(text, ms = 3000) {
     const t = $("toast");
     t.textContent = text;
     t.hidden = false;
     clearTimeout(toast.timer);
-    toast.timer = setTimeout(() => (t.hidden = true), 3000);
+    toast.timer = setTimeout(() => (t.hidden = true), ms);
   }
 
   // ---------- Connexion ----------
@@ -113,6 +117,21 @@
         e.ty = y;
         e.act = act || null;
       }
+    });
+    socket.on("trophy", ({ id }) => {
+      const t = S.catalog.trophies.find((x) => x.id === id);
+      if (!t) return;
+      Sound.play("win");
+      const rewards = t.reward.map((c) => S.catalog.cosmetics[c]?.name).join(" + ");
+      toast(`🏆 Trophée « ${t.name} » ! Débloqué : ${rewards}. Appuie sur T pour l'équiper.`, 6000);
+    });
+    socket.on("trophy:announce", ({ pseudo, name }) => {
+      if (pseudo !== S.me?.pseudo) toast(`🏆 ${pseudo} a obtenu le trophée « ${name} »`);
+    });
+    socket.on("fx", ({ type, from, to }) => {
+      S.fx.push({ type, from, to, t: performance.now() / 1000 });
+      Sound.play(type === "bite" ? "bite" : "flame", from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
+      if (to === S.me?.id) toast(type === "bite" ? `${S.players.get(from)?.pseudo} t'a mordu·e ! 🩸` : `${S.players.get(from)?.pseudo} t'a roussi·e ! 🔥`);
     });
     socket.on("lg:state", (s) => Werewolf.onState(s));
     socket.on("lg:you", (y) => Werewolf.onYou(y));
@@ -194,6 +213,7 @@
     m.zone = S.zone;
     if (data.ball) Object.assign(S.ball, { x: data.ball[0], y: data.ball[1], z: data.ball[2], tx: data.ball[0], ty: data.ball[1], tz: data.ball[2] });
     S.wall = data.wall || [];
+    if (data.catalog) S.catalog = data.catalog;
     Werewolf.onState(data.lg);
     Werewolf.onYou(data.lgYou);
     S.fishing = data.fishing || S.fishing;
@@ -479,10 +499,24 @@
     if (lgAction) S.near = lgAction;
     else if (Werewolf.frozen()) S.near = null;
     if (S.pending && sameInter(S.pending, S.near)) interact(S.near);
+    // action du jour : l'Enxor le plus proche
+    S.dayTarget = null;
+    const dayAct = DAY_ACTIONS[unlocked()];
+    if (dayAct && !Werewolf.frozen()) {
+      let bd = inside ? 70 : 60;
+      for (const e of S.ents.values()) {
+        if (e === m || e.zone !== S.zone || !Werewolf.view(e).show) continue;
+        const d = inside ? Math.abs(e.x - m.x) : Math.hypot(e.x - m.x, e.y - m.y);
+        if (d < bd) { bd = d; S.dayTarget = e; }
+      }
+    }
     const prompt = $("prompt");
-    prompt.hidden = !S.near || !!S.panel;
+    const parts = [];
+    if (S.near) parts.push(`E · ${S.near.label}`);
+    if (S.dayTarget) parts.push(`F · ${dayAct.verb} ${S.players.get(S.dayTarget.id)?.pseudo || ""}`);
+    prompt.hidden = !parts.length || !!S.panel;
     prompt.classList.toggle("urgent", S.fish?.state === "bite");
-    if (S.near) prompt.textContent = `E · ${S.near.label}`;
+    prompt.textContent = parts.join("   ·   ");
 
     // ambiance sonore et musique
     const fireV = inside ? 0 : clamp(1 - Math.hypot(m.x - V.FIRE.x, m.y - V.FIRE.y) / 520, 0, 1);
@@ -694,7 +728,7 @@
     const fishing = e.act === "fish" && e.zone === "village";
     const face = fishing ? Math.sign(V.POND.x - e.x) || 1 : e.face;
     const look = e.zone === "village" ? Werewolf.entLook(e.id) : null;
-    const opts = { seed: e.seed, color: p?.color, moving: e.moving, face, rod: p?.owner || fishing, emote: e.emote, et, eyes: look?.eyes };
+    const opts = { seed: e.seed, color: p?.color, moving: e.moving, face, rod: p?.owner || fishing, emote: e.emote, et, eyes: look?.eyes, wear: p?.wear };
     if (fishing) drawLine(e, face, t);
     const sy = e.act === "sit" ? 0.82 : 1;
     ctx.save();
@@ -735,6 +769,41 @@
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  // effets des actions du jour : morsure (gouttes de sang) et souffle de feu
+  function drawFx(t, scale = 1) {
+    S.fx = S.fx.filter((f) => t - f.t < 1.3);
+    for (const f of S.fx) {
+      const a = S.ents.get(f.from), b = S.ents.get(f.to);
+      if (!a || !b || a.zone !== S.zone || b.zone !== S.zone) continue;
+      const age = t - f.t;
+      ctx.save();
+      if (f.type === "bite") {
+        ctx.fillStyle = "#b3261e";
+        for (let i = 0; i < 9; i++) {
+          const ang = (i / 9) * Math.PI * 2;
+          const d = 8 + age * 40;
+          ctx.globalAlpha = Math.max(0, 1 - age);
+          ctx.beginPath();
+          ctx.ellipse(b.x + Math.cos(ang) * d, b.y - 22 * scale + Math.sin(ang) * d * 0.6 + age * age * 30, 2.6, 3.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = Math.max(0, 1 - age);
+        Ink.word(ctx, "CROC !", b.x, b.y - 70 * scale - age * 20, 18, "#b3261e", 800);
+      } else {
+        for (let k = 0; k < 14; k++) {
+          const p = Math.min(1, age * 1.6 + k * 0.03);
+          const x = a.x + (b.x - a.x) * p + Math.sin(k * 3 + t * 20) * 6, y = a.y - 22 * scale + (b.y - a.y) * p + Math.cos(k * 2 + t * 18) * 6;
+          ctx.globalAlpha = Math.max(0, 1 - age) * (1 - k / 16);
+          const g = ctx.createRadialGradient(x, y, 0, x, y, 12);
+          g.addColorStop(0, "#fff1b0"); g.addColorStop(0.5, "#e0662f"); g.addColorStop(1, "rgba(179,38,30,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
   }
 
   function drawOverheads(e, t, scale = 1) {
@@ -796,6 +865,7 @@
     }
     for (const e of here) items.push({ y: e.y, draw: () => drawEnt(e, t) });
     items.sort((a, b) => a.y - b.y).forEach((i) => i.draw());
+    drawFx(t);
 
     // nuit : tout s'assombrit sauf autour des lumières
     V.drawNight(ctx, cam, vw, vh, dpr, S.sky, villageLights(cam));
@@ -856,6 +926,7 @@
 
     const here = [...S.ents.values()].filter((e) => e.zone === S.zone);
     for (const e of here) drawEnt(e, t, INSIDE_SCALE);
+    drawFx(t, INSIDE_SCALE);
     for (const e of here) drawOverheads(e, t, INSIDE_SCALE);
   }
 
@@ -886,6 +957,11 @@
       openChat();
     } else if (/^[1-6]$/.test(e.key)) {
       sendEmote(EMOTES[Number(e.key) - 1][0]);
+    } else if (e.key.toLowerCase() === "f" && S.dayTarget && performance.now() - S.lastDayAct > 1200) {
+      S.lastDayAct = performance.now();
+      S.socket.emit("dayact", S.dayTarget.id);
+    } else if (e.key.toLowerCase() === "t") {
+      openPanel({ type: "trophies" });
     }
   });
   window.addEventListener("keyup", (e) => {
@@ -974,7 +1050,56 @@
     else if (type === "frame") renderFrame(body, S.panel.day);
     else if (type === "records") renderRecords(body);
     else if (type === "stage") Werewolf.renderPanel(body);
+    else if (type === "trophies") renderTrophies(body);
     else if (type === "board") renderBoard(body);
+  }
+
+  // ---------- Trophées et garde-robe ----------
+
+  const SLOT_NAMES = { head: "Tête", face: "Visage", back: "Dos", aura: "Aura" };
+
+  function renderTrophies(body) {
+    const me = S.players.get(S.me.id) || S.me;
+    const owned = new Set(me.trophies || []);
+    const { trophies, cosmetics, slots } = S.catalog;
+    const n = unlocked();
+    const unlockedItems = new Set(trophies.filter((t) => owned.has(t.id)).flatMap((t) => t.reward));
+
+    const preview = el("canvas", { class: "wear-preview", width: "180", height: "180" });
+    const pg = preview.getContext("2d");
+    pg.scale(2, 2);
+    pg.fillStyle = Ink.PAPER;
+    pg.fillRect(0, 0, 90, 90);
+    Ink.enxor(pg, 45, 72, performance.now() / 1000, { seed: 1, color: me.color, wear: me.wear, face: 1 });
+
+    body.append(
+      el("p", { class: "eyebrow", text: `${owned.size} / ${trophies.length} trophées` }),
+      el("h2", { class: "script", text: "Trophées" }),
+      el("section", { class: "wardrobe" },
+        preview,
+        el("div", { class: "wear-slots" }, slots.map((slot) => {
+          const items = Object.entries(cosmetics).filter(([id, c]) => c.slot === slot && unlockedItems.has(id));
+          return el("div", { class: "row" },
+            el("span", { class: "row-label", text: SLOT_NAMES[slot] }),
+            el("div", { class: "seg" },
+              el("button", { class: !me.wear?.[slot] ? "on" : "", text: "Rien", onclick: () => S.socket.emit("wear", { slot, item: null }) }),
+              items.map(([id, c]) => el("button", { class: me.wear?.[slot] === id ? "on" : "", text: c.name, onclick: () => S.socket.emit("wear", { slot, item: id }) }))),
+            !items.length && el("span", { class: "muted", text: "rien de débloqué" }));
+        }))),
+      el("div", { class: "trophy-grid" }, trophies.map((t) => {
+        const has = owned.has(t.id);
+        const hidden = t.secret && !has;
+        const stat = me.stats?.[t.stat];
+        const count = Array.isArray(stat) ? stat.length : stat || 0;
+        let status = has ? "Obtenu !" : t.goal ? `${Math.min(count, t.goal)} / ${t.goal}` : "";
+        if (!has && t.day) status = t.day === n ? ["Aujourd'hui seulement", status].filter(Boolean).join(" · ") : t.day < n ? "Effacé par l'encre" : `Le jour ${t.day} (${THEMES[t.day - 1]})`;
+        return el("div", { class: "trophy" + (has ? " has" : "") + (hidden ? " secret" : "") },
+          el("strong", { text: hidden ? "Trophée secret" : t.name }),
+          el("p", { text: hidden ? "???" : t.desc }),
+          el("small", { text: hidden ? "" : "Débloque : " + t.reward.map((c) => cosmetics[c]?.name).join(" + ") }),
+          status && el("em", { text: status }));
+      })),
+    );
   }
 
   // ---------- Activités du village ----------
@@ -1294,6 +1419,11 @@
     forceVillage() {
       if (inCabin()) exitCabin();
     },
+  });
+
+  $("trophy-btn").addEventListener("click", (e) => {
+    e.currentTarget.blur();
+    if (S.me) openPanel({ type: "trophies" });
   });
 
   // boutons musique / sons (dans le village et pendant les jeux)
