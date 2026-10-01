@@ -43,6 +43,7 @@
   function el(tag, props = {}, ...kids) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(props)) {
+      if (v == null || v === false) continue;
       if (k === "class") n.className = v;
       else if (k === "text") n.textContent = v;
       else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
@@ -113,6 +114,10 @@
         e.act = act || null;
       }
     });
+    socket.on("lg:state", (s) => Werewolf.onState(s));
+    socket.on("lg:you", (y) => Werewolf.onYou(y));
+    socket.on("lg:gather", (ids) => Werewolf.onGather(ids));
+    socket.on("lg:msg", (text) => toast(text));
     socket.on("wall", (w) => {
       S.wall = w;
       if (S.panel?.type === "board") renderPanel();
@@ -186,6 +191,8 @@
     m.zone = S.zone;
     if (data.ball) Object.assign(S.ball, { x: data.ball[0], y: data.ball[1], z: data.ball[2], tx: data.ball[0], ty: data.ball[1], tz: data.ball[2] });
     S.wall = data.wall || [];
+    Werewolf.onState(data.lg);
+    Werewolf.onYou(data.lgYou);
     S.fishing = data.fishing || S.fishing;
     for (const [id, , , , act] of data.online) if (S.ents.get(id)) S.ents.get(id).act = act || null;
     if (!S.crows.length) spawnCrows();
@@ -300,6 +307,7 @@
       { kind: "records", x: rs.x, y: rs.y + 20, r: 60, label: "Lire les records de pêche", hit: { x: rs.x - 80, y: rs.y - 100, w: 160, h: 100 } },
       { kind: "board", x: bd.x, y: bd.y + 24, r: 75, label: "Lire le mur des mots", hit: { x: bd.x - 85, y: bd.y - 130, w: 170, h: 130 } },
       ...V.SEATS.map((s, i) => ({ kind: "seat", id: "seat" + i, x: s.x, y: s.y + 26, r: 40, label: "S'asseoir près du feu", seat: s })),
+      { kind: "stage", x: V.ARENA.x, y: V.STAGE.y + 130, r: 110, goX: V.ARENA.x, goY: V.STAGE.y + 120, label: "Loup-garou d'encre", hit: { x: V.STAGE.x - 20, y: V.STAGE.y - 150, w: V.STAGE.w + 40, h: 260 } },
     ];
     for (const p of S.players.values()) {
       if (p.plot == null) continue;
@@ -436,6 +444,8 @@
     } else if (S.fish?.state === "reel" && t > S.fish.until) {
       S.fish = { state: "wait", biteAt: t + 3 + Math.random() * 6 };
     }
+
+    Werewolf.update();
 
     // pierres musicales
     if (!inside) {
@@ -675,10 +685,12 @@
     const et = t - e.emoteAt;
     const fishing = e.act === "fish" && e.zone === "village";
     const face = fishing ? Math.sign(V.POND.x - e.x) || 1 : e.face;
-    const opts = { seed: e.seed, color: p?.color, moving: e.moving, face, rod: p?.owner || fishing, emote: e.emote, et };
+    const look = e.zone === "village" ? Werewolf.entLook(e.id) : null;
+    const opts = { seed: e.seed, color: p?.color, moving: e.moving, face, rod: p?.owner || fishing, emote: e.emote, et, eyes: look?.eyes };
     if (fishing) drawLine(e, face, t);
     const sy = e.act === "sit" ? 0.82 : 1;
     ctx.save();
+    if (look?.alpha) ctx.globalAlpha = look.alpha;
     ctx.translate(e.x, e.y);
     ctx.scale(scale, scale * sy);
     Ink.enxor(ctx, 0, 0, t, opts);
@@ -758,6 +770,7 @@
     if (vis(V.FIRE.x, V.FIRE.y)) items.push({ y: V.FIRE.y, draw: () => V.drawFire(ctx, t) });
     if (vis(V.BOARD.x, V.BOARD.y)) items.push({ y: V.BOARD.y, draw: () => V.drawBoard(ctx, t, S.wall.length) });
     for (const c of S.crows) if (vis(c.x, c.y)) items.push({ y: c.y, draw: () => V.drawCrow(ctx, c, t) });
+    items.push(...Werewolf.items(ctx, t, vis));
     for (const p of S.players.values()) {
       if (p.plot == null) continue;
       const pl = V.plots[p.plot];
@@ -775,6 +788,7 @@
 
     // nuit : tout s'assombrit sauf autour des lumières
     V.drawNight(ctx, cam, vw, vh, dpr, S.sky, villageLights(cam));
+    Werewolf.overlay(ctx, vw, vh, dpr, t);
     ctx.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
 
     ctx.save();
@@ -941,6 +955,7 @@
     else if (type === "bench") renderBench(body);
     else if (type === "frame") renderFrame(body, S.panel.day);
     else if (type === "records") renderRecords(body);
+    else if (type === "stage") Werewolf.renderPanel(body);
     else if (type === "board") renderBoard(body);
   }
 
@@ -1238,6 +1253,23 @@
   }
 
   // ---------- Démarrage ----------
+
+  Werewolf.init({
+    S, el, toast, me, hearing, inCabin, closePanel, renderPanel,
+    get socket() { return S.socket; },
+    teleport(x, y) {
+      const m = me();
+      if (!m || inCabin()) return;
+      stopActivity();
+      Object.assign(m, { x, y });
+      S.target = S.pending = null;
+      sendMove(true);
+    },
+    walkTo(x, y) {
+      S.pending = null;
+      S.target = { x, y };
+    },
+  });
 
   // boutons musique / sons (dans le village et pendant les jeux)
   function soundButtons() {

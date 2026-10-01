@@ -7,6 +7,7 @@ const { Server } = require("socket.io");
 const store = require("./store");
 const clock = require("./clock");
 const fish = require("./fish");
+const createWerewolf = require("./werewolf");
 
 const PORT = Number(process.env.PORT) || 3000;
 const TEAM_CODE = (process.env.TEAM_CODE || "dreamteam").trim();
@@ -52,7 +53,9 @@ function cleanText(s, max) {
   return String(s || "").replace(/[\u0000-\u001f<>]/g, "").trim().replace(/\s+/g, " ").slice(0, max);
 }
 
-function createPlayer(pseudo) {
+// knownToken : jeton présenté par un navigateur dont le joueur a disparu de la base
+// (données perdues) : on le réutilise pour que la personne retrouve son pseudo sans erreur.
+function createPlayer(pseudo, knownToken) {
   const owner = !!OWNER && pseudo.toLowerCase() === OWNER;
   const plot = owner ? null : freePlot();
   if (plot === -1) return null;
@@ -60,7 +63,7 @@ function createPlayer(pseudo) {
   const p = {
     id: crypto.randomBytes(6).toString("hex"),
     pseudo,
-    token: crypto.randomBytes(18).toString("hex"),
+    token: /^[0-9a-f]{36}$/.test(knownToken || "") ? knownToken : crypto.randomBytes(18).toString("hex"),
     owner,
     plot,
     color,
@@ -144,7 +147,7 @@ io.use((socket, next) => {
       io.emit("player:update", publicPlayer(p));
     }
   } else {
-    p = createPlayer(pseudo);
+    p = createPlayer(pseudo, auth.token);
     if (!p) return next(new Error("Le village est complet."));
     io.emit("player:update", publicPlayer(p));
   }
@@ -170,6 +173,7 @@ const CENTER = { x: 1500, y: 1300 };
 const solids = [
   { x: 1405, y: 1262, w: 190, h: 72 }, { x: 1342, y: 420, w: 316, h: 50 },
   { x: 770, y: 355, w: 320, h: 150 }, { x: 1728, y: 1452, w: 84, h: 26 }, { x: 1222, y: 1494, w: 56, h: 32 },
+  { x: 290, y: 230, w: 260, h: 90 }, // l'estrade
 ];
 for (const [radius, count] of [[430, 10], [780, 18]]) {
   for (let i = 0; i < count; i++) {
@@ -216,6 +220,8 @@ setInterval(() => {
 
 const onlineList = () => [...online].map(([id, v]) => [id, Math.round(v.x), Math.round(v.y), v.zone, v.act]);
 
+const lg = createWerewolf(io, (id) => db.players[id]);
+
 db.wall ||= [];
 db.fishing ||= { records: {}, log: [] };
 
@@ -228,6 +234,7 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("player:online", { id: p.id, x: o.x, y: o.y, zone: o.zone });
   }
   o.sockets++;
+  socket.join("p:" + p.id); // salon privé du joueur (rôle secret du loup-garou…)
 
   socket.emit("init", {
     me: { ...publicPlayer(p), token: p.token },
@@ -237,7 +244,14 @@ io.on("connection", (socket) => {
     ball: [Math.round(ball.x), Math.round(ball.y), Math.round(ball.z)],
     wall: db.wall,
     fishing: db.fishing,
+    lg: lg.publicState(),
+    lgYou: lg.privateFor(p.id),
   });
+
+  // loup-garou
+  for (const name of ["join", "leave", "start"]) socket.on("lg:" + name, () => lg.actions[name](p.id));
+  for (const name of ["wolf", "seer", "vote", "shoot"]) socket.on("lg:" + name, (target) => lg.actions[name](p.id, target ?? null));
+  socket.on("lg:witch", (choice) => lg.actions.witch(p.id, choice || {}));
 
   socket.on("act", (act) => {
     if (!ACTS.includes(act)) return;
@@ -324,7 +338,11 @@ io.on("connection", (socket) => {
     if (now - lastChat < 700) return;
     lastChat = now;
     const t = cleanText(text, 140);
-    if (t) io.emit("chat", { id: p.id, text: t });
+    if (!t) return;
+    const route = lg.chatRoute(p.id);
+    if (!route) return io.emit("chat", { id: p.id, text: t });
+    if (route.blocked) return socket.emit("lg:msg", route.blocked);
+    io.except(route.exclude.map((id) => "p:" + id)).emit("chat", { id: p.id, text: t });
   });
 
   socket.on("cabin:update", (c) => {
@@ -361,6 +379,15 @@ setInterval(() => {
   }
 }, 10000);
 
+app.get("/api/status", (req, res) => {
+  res.json({ players: Object.keys(db.players).length, dataDir: store.DATA_DIR, persistent: !!process.env.DATA_DIR, unlocked: clock.unlockedDays() });
+});
+
 server.listen(PORT, () => {
   console.log(`Village Enxor sur http://localhost:${PORT} (jour débloqué : ${clock.unlockedDays()})`);
+  console.log(`Données : ${store.DATA_DIR} · ${Object.keys(db.players).length} joueur(s) enregistré(s)`);
+  if (process.env.RAILWAY_ENVIRONMENT && !process.env.DATA_DIR) {
+    console.warn("⚠️  DATA_DIR n'est pas défini : les cabanes et les dessins seront EFFACÉS au prochain déploiement.");
+    console.warn("⚠️  Ajoute un volume Railway monté sur /data et la variable DATA_DIR=/data.");
+  }
 });

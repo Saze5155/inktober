@@ -352,9 +352,9 @@ window.Ink = (() => {
         ctx.beginPath();
         ctx.ellipse(ex, ey, 4, 5.2, 0, 0, TAU);
         ctx.fill();
-        ctx.fillStyle = INK;
+        ctx.fillStyle = o.eyes || INK;
         ctx.beginPath();
-        ctx.arc(ex + face * 1.5, ey + 0.5, 2.2, 0, TAU);
+        ctx.arc(ex + face * 1.5, ey + 0.5, o.eyes ? 2.8 : 2.2, 0, TAU);
         ctx.fill();
       }
     }

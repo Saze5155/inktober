@@ -235,6 +235,34 @@ window.Sound = (() => {
     die: () => { noise({ dur: 0.9, vol: 0.2, freq: 4000, sweep: 300, attack: 0.05 }); tone({ freq: 330, glide: 110, dur: 0.9, vol: 0.12, type: "triangle" }); },
     win: () => [62, 65, 69, 74, 77].forEach((n, i) => pluck(midi(n), ac.currentTime + i * 0.1, 0.14, sfxBus, 1.5)),
     start: () => [57, 64, 69].forEach((n, i) => pluck(midi(n), ac.currentTime + i * 0.12, 0.12)),
+    howl: (v = 1) => {
+      const t = ac.currentTime;
+      const o = ac.createOscillator();
+      const lfo = ac.createOscillator();
+      const lg = ac.createGain();
+      const g = ac.createGain();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(260, t);
+      o.frequency.linearRampToValueAtTime(520, t + 0.6);
+      o.frequency.linearRampToValueAtTime(480, t + 1.6);
+      o.frequency.linearRampToValueAtTime(300, t + 2.3);
+      lfo.frequency.value = 6;
+      lg.gain.value = 12;
+      lfo.connect(lg);
+      lg.connect(o.frequency);
+      const f = ac.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.value = 1200;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12 * v, t + 0.3);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4);
+      o.connect(f); f.connect(g); g.connect(sfxBus);
+      o.start(t); lfo.start(t); o.stop(t + 2.5); lfo.stop(t + 2.5);
+    },
+    bell: (v = 1) => [0, 0.5].forEach((d) => { tone({ freq: 392, t: ac.currentTime + d, dur: 2, vol: 0.14 * v, type: "triangle" }); tone({ freq: 392 * 2.76, t: ac.currentTime + d, dur: 1, vol: 0.04 * v }); }),
+    gavel: (v = 1) => [0, 0.18, 0.36].forEach((d) => { tone({ freq: 180, glide: 90, t: ac.currentTime + d, dur: 0.1, vol: 0.35 * v, type: "triangle" }); noise({ t: ac.currentTime + d, dur: 0.05, vol: 0.2 * v, freq: 2000 }); }),
+    reveal: (v = 1) => [62, 58, 55].forEach((n, i) => tone({ freq: midi(n), t: ac.currentTime + i * 0.25, dur: 0.6, vol: 0.12 * v, type: "triangle" })),
+    tick: () => tone({ freq: 1400, dur: 0.03, vol: 0.05 }),
   };
 
   // v : volume relatif (pour les sons à distance), extra : paramètre propre à l'effet

@@ -27,7 +27,19 @@ window.Village = (() => {
   const FIRE = { x: 1250, y: 1510 };
   const SEATS = [{ x: 1170, y: 1520 }, { x: 1330, y: 1520 }, { x: 1250, y: 1585 }, { x: 1250, y: 1440 }];
   const BOARD = { x: 1770, y: 1470 };
-  const NOTE_COLORS = ["#b3261e", "#e0662f", "#e9b04a", "#5b8c5a", "#5bb3a0", "#3e7cb1", "#7d5ba6", "#d36b9c"];
+  // l'estrade du loup-garou et ses pupitres en arc de cercle
+  const ARENA = { x: 420, y: 330 };
+  const STAGE = { x: 290, y: 230, w: 260, h: 90 };
+  function arenaSpots(n) {
+    return Array.from({ length: n }, (_, i) => {
+      const a = ((15 + ((i + 0.5) * 150) / n) * Math.PI) / 180;
+      const p = { x: ARENA.x + Math.cos(a) * 300, y: ARENA.y + Math.sin(a) * 210 };
+      const d = Math.hypot(p.x - ARENA.x, p.y - ARENA.y);
+      const ox = (p.x - ARENA.x) / d, oy = (p.y - ARENA.y) / d;
+      return { x: p.x, y: p.y, stand: { x: p.x + ox * 34, y: p.y + oy * 30 + 8 }, vote: { x: p.x - ox * 62, y: p.y - oy * 50 } };
+    });
+  }
+  const NOTE_COLORS =["#b3261e", "#e0662f", "#e9b04a", "#5b8c5a", "#5bb3a0", "#3e7cb1", "#7d5ba6", "#d36b9c"];
 
   // ---------- Sprites (dessinés une fois, 3 variantes pour l'effet « trait qui bouillonne ») ----------
 
@@ -409,6 +421,7 @@ window.Village = (() => {
       ...STONES.map((s) => ({ x: s.x, y: s.y, r: 50 })),
       { x: FIRE.x, y: FIRE.y, r: 130 },
       { x: BOARD.x, y: BOARD.y, r: 80 },
+      { x: ARENA.x, y: ARENA.y + 60, r: 360 },
     ];
     const free = (x, y, m) =>
       x > m && y > m && x < W - m && y < H - m &&
@@ -606,6 +619,108 @@ window.Village = (() => {
     Ink.word(ctx, "Le mur des mots", BOARD.x, BOARD.y - 136, 14, INK, 700);
   }
 
+  // ---------- L'estrade du loup-garou ----------
+
+  function stageSprite(frame) {
+    return sprite(`stage|${frame}`, 340, 280, 170, 170, (g) => {
+      const r = Ink.rng(404 + frame * 7919);
+      const { w, h } = STAGE;
+      // rideau du fond
+      const back = [[-w / 2 - 10, -40], [-w / 2 - 10, -150], [w / 2 + 10, -150], [w / 2 + 10, -40]];
+      Ink.fill(g, back, r, "#6e1f2c");
+      for (let x = -w / 2; x < w / 2; x += 22) Ink.stroke(g, [[x, -146], [x + 4, -42]], r, { w: 1, passes: 1, alpha: 0.4 });
+      Ink.stroke(g, back, r, { w: 2.2, closed: true });
+      Ink.fill(g, Ink.rect(-w / 2 - 20, -160, w + 40, 18), r, "#3b2a1c");
+      Ink.stroke(g, Ink.rect(-w / 2 - 20, -160, w + 40, 18), r, { w: 2, closed: true });
+      // plancher
+      const floor = [[-w / 2, -h + 50], [w / 2, -h + 50], [w / 2 + 14, 50], [-w / 2 - 14, 50]];
+      Ink.fill(g, floor, r, "#b08a5c");
+      for (let y = -h + 62; y < 50; y += 12) Ink.stroke(g, [[-w / 2 - 6, y], [w / 2 + 6, y]], r, { w: 0.9, passes: 1, alpha: 0.45 });
+      Ink.stroke(g, floor, r, { w: 2.4, closed: true });
+      // devant de la scène
+      const front = Ink.rect(-w / 2 - 14, 50, w + 28, 16);
+      Ink.fill(g, front, r, "#7a5636");
+      Ink.hatch(g, front, r, { gap: 5, alpha: 0.35 });
+      Ink.stroke(g, front, r, { w: 2, closed: true });
+      // marches
+      for (let i = 0; i < 2; i++) {
+        const st = Ink.rect(-30 + i * 6, 66 + i * 8, 60 - i * 12, 8);
+        Ink.fill(g, st, r, "#9a7650");
+        Ink.stroke(g, st, r, { w: 1.4, closed: true, step: 8 });
+      }
+    });
+  }
+
+  function drawStage(ctx, t, lit) {
+    blit(ctx, stageSprite(boil(t)), ARENA.x, STAGE.y + 40);
+    ctx.save();
+    ctx.font = `700 13px "Barlow Semi Condensed", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#e9b04a";
+    ctx.fillText("CONSEIL DU VILLAGE", ARENA.x, STAGE.y - 111);
+    ctx.restore();
+    // torches
+    for (const s of [-1, 1]) {
+      const x = ARENA.x + s * (STAGE.w / 2 + 34), y = STAGE.y + 100;
+      Ink.shadow(ctx, x, y, 8, 3);
+      ctx.save();
+      ctx.strokeStyle = "#5a3a22";
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 46); ctx.stroke();
+      const f = Math.sin(t * 11 + s) * 2;
+      ctx.fillStyle = lit ? "#e0662f" : "#b3261e";
+      ctx.beginPath();
+      ctx.moveTo(x - 7, y - 46); ctx.quadraticCurveTo(x - 6, y - 62, x + f, y - 70); ctx.quadraticCurveTo(x + 7, y - 60, x + 7, y - 46);
+      ctx.fill();
+      ctx.fillStyle = "#e9b04a";
+      ctx.beginPath();
+      ctx.moveTo(x - 3, y - 46); ctx.quadraticCurveTo(x - 2, y - 56, x + f * 0.5, y - 61); ctx.quadraticCurveTo(x + 3, y - 54, x + 3, y - 46);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // pupitres des joueurs : nom, état (mort / accusé), et cercles de vote pendant le vote
+  function drawPodiums(ctx, t, lgs, spots, players) {
+    lgs.players.forEach((p, i) => {
+      const s = spots[i];
+      const accused = lgs.accused === p.id;
+      Ink.shadow(ctx, s.x, s.y + 2, 16, 5);
+      ctx.save();
+      ctx.fillStyle = p.alive ? "#8a5a3a" : "#5a5560";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(s.x - 14, s.y); ctx.lineTo(s.x - 10, s.y - 26); ctx.lineTo(s.x + 10, s.y - 26); ctx.lineTo(s.x + 14, s.y);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = accused ? "#b3261e" : "#d8c39a";
+      ctx.fillRect(s.x - 18, s.y - 34, 36, 9);
+      ctx.strokeRect(s.x - 18, s.y - 34, 36, 9);
+      ctx.restore();
+      const color = players.get(p.id)?.color || INK;
+      Ink.label(ctx, p.pseudo, s.x, s.y - 44, { size: 12, dot: color, color: p.alive ? INK : "#6b6170" });
+      if (!p.alive) {
+        Ink.word(ctx, "✝", s.x, s.y - 15, 14, PAPER);
+        if (p.role) Ink.label(ctx, p.role === "loup" ? "Loup-garou" : p.role[0].toUpperCase() + p.role.slice(1), s.x, s.y + 14, { size: 11, color: p.role === "loup" ? "#b3261e" : "#6b6170" });
+      }
+      if (lgs.phase === "vote" && p.alive) {
+        const count = Object.values(lgs.votes).filter((v) => v === p.id).length;
+        ctx.save();
+        ctx.strokeStyle = count ? "#b3261e" : "rgba(29,26,32,.45)";
+        ctx.lineWidth = count ? 2.6 : 1.6;
+        ctx.setLineDash([6, 5]);
+        ctx.lineDashOffset = -t * 20;
+        ctx.beginPath();
+        ctx.ellipse(s.vote.x, s.vote.y, 28, 15, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        if (count) Ink.word(ctx, String(count), s.vote.x, s.vote.y + 1, 16, "#b3261e", 800);
+      }
+    });
+  }
+
   // corbeaux d'encre (décor vivant, simulé sur chaque PC)
   function drawCrow(ctx, c, t) {
     const fly = c.state === "fly";
@@ -717,8 +832,9 @@ window.Village = (() => {
   }
 
   return {
-    W, H, CENTER, HOUSE, COLORS, ROOFS, plots, lamps, POND, RECORDS, STONES, FIRE, SEATS, BOARD,
+    W, H, CENTER, HOUSE, COLORS, ROOFS, plots, lamps, POND, RECORDS, STONES, FIRE, SEATS, BOARD, ARENA, STAGE, arenaSpots,
     buildBackground, drawCabin, drawHouse, drawSource, drawPond, drawRecordsSign, drawStones, drawFire, drawBoard, drawCrow,
+    drawStage, drawPodiums,
     sky, drawNight,
   };
 })();
