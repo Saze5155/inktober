@@ -6,6 +6,7 @@ const express = require("express");
 const { Server } = require("socket.io");
 const store = require("./store");
 const clock = require("./clock");
+const fish = require("./fish");
 
 const PORT = Number(process.env.PORT) || 3000;
 const TEAM_CODE = (process.env.TEAM_CODE || "dreamteam").trim();
@@ -19,6 +20,7 @@ const COLORS = ["#b3261e", "#e0662f", "#e9b04a", "#5b8c5a", "#3e7cb1", "#7d5ba6"
 const ROOFS = ["pointu", "plat", "rond"];
 const EMOTES = ["coeur", "rire", "surprise", "danse", "dodo", "splash"];
 const INTERIOR = { w: 32 * 560, h: 400 }; // doit correspondre à public/js/interior.js
+const ACTS = [null, "fish", "sit"];
 
 const app = express();
 const server = http.createServer(app);
@@ -164,7 +166,11 @@ function validZone(z, visitor) {
 
 const BALL_R = 14;
 const CENTER = { x: 1500, y: 1300 };
-const solids = [{ x: 1405, y: 1262, w: 190, h: 72 }, { x: 1342, y: 420, w: 316, h: 50 }];
+// Source, grande maison, étang, mur des mots, feu de camp (mêmes positions que public/js/village.js)
+const solids = [
+  { x: 1405, y: 1262, w: 190, h: 72 }, { x: 1342, y: 420, w: 316, h: 50 },
+  { x: 770, y: 355, w: 320, h: 150 }, { x: 1728, y: 1452, w: 84, h: 26 }, { x: 1222, y: 1494, w: 56, h: 32 },
+];
 for (const [radius, count] of [[430, 10], [780, 18]]) {
   for (let i = 0; i < count; i++) {
     const a = ((-55 + ((i + 0.5) * 290) / count) * Math.PI) / 180;
@@ -208,13 +214,16 @@ setInterval(() => {
   io.emit("ball", [Math.round(ball.x), Math.round(ball.y), Math.round(ball.z)]);
 }, 1000 / 30);
 
-const onlineList = () => [...online].map(([id, v]) => [id, Math.round(v.x), Math.round(v.y), v.zone]);
+const onlineList = () => [...online].map(([id, v]) => [id, Math.round(v.x), Math.round(v.y), v.zone, v.act]);
+
+db.wall ||= [];
+db.fishing ||= { records: {}, log: [] };
 
 io.on("connection", (socket) => {
   const p = db.players[socket.data.id];
   let o = online.get(p.id);
   if (!o) {
-    o = { x: SPAWN.x + (Math.random() - 0.5) * 120, y: SPAWN.y + Math.random() * 60, zone: "village", sockets: 0 };
+    o = { x: SPAWN.x + (Math.random() - 0.5) * 120, y: SPAWN.y + Math.random() * 60, zone: "village", act: null, actAt: 0, sockets: 0 };
     online.set(p.id, o);
     socket.broadcast.emit("player:online", { id: p.id, x: o.x, y: o.y, zone: o.zone });
   }
@@ -226,12 +235,59 @@ io.on("connection", (socket) => {
     online: onlineList(),
     day: clock.dayInfo(),
     ball: [Math.round(ball.x), Math.round(ball.y), Math.round(ball.z)],
+    wall: db.wall,
+    fishing: db.fishing,
+  });
+
+  socket.on("act", (act) => {
+    if (!ACTS.includes(act)) return;
+    o.act = act;
+    o.actAt = Date.now();
+    dirty = true;
+  });
+
+  // la pêche : le client annonce qu'il a ferré, le serveur tire le poisson
+  socket.on("fish:catch", () => {
+    if (o.act !== "fish" || Date.now() - o.actAt < 2000) return;
+    o.actAt = Date.now();
+    const c = { ...fish.roll(clock.unlockedDays()), pseudo: p.pseudo, color: p.color, at: Date.now() };
+    const rec = db.fishing.records[c.name];
+    c.record = !c.junk && (!rec || c.size > rec.size);
+    if (c.record) db.fishing.records[c.name] = { size: c.size, pseudo: p.pseudo, at: c.at };
+    db.fishing.log.unshift(c);
+    db.fishing.log.length = Math.min(db.fishing.log.length, 25);
+    p.catches = (p.catches || 0) + 1;
+    store.save();
+    io.emit("fish", { id: p.id, catch: c, fishing: db.fishing });
+  });
+
+  // pierres musicales
+  let lastNote = 0;
+  socket.on("note", (i) => {
+    const now = Date.now();
+    if (now - lastNote < 80 || !Number.isInteger(i) || i < 0 || i > 7) return;
+    lastNote = now;
+    io.emit("note", { id: p.id, i });
+  });
+
+  // le mur des mots
+  let lastPost = 0;
+  socket.on("wall:post", (text) => {
+    const now = Date.now();
+    const t = cleanText(text, 120);
+    if (!t || now - lastPost < 20000) return;
+    lastPost = now;
+    db.wall.unshift({ pseudo: p.pseudo, color: p.color, text: t, at: now });
+    db.wall.length = Math.min(db.wall.length, 60);
+    store.save();
+    io.emit("wall", db.wall);
   });
 
   socket.on("move", (pos) => {
     const x = Number(pos?.x), y = Number(pos?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     if (validZone(pos.zone, p)) o.zone = pos.zone;
+    if (o.act && (Math.abs(x - o.x) > 3 || Math.abs(y - o.y) > 3)) o.act = null; // bouger arrête de pêcher / de s'asseoir
     const max = o.zone === "village" ? WORLD : INTERIOR;
     o.x = Math.max(0, Math.min(max.w, x));
     o.y = Math.max(0, Math.min(max.h, y));

@@ -168,6 +168,7 @@
 
   Games.register(1, {
     title: "L'ombre du vampire",
+    music: "vampire",
     story: "Dans les ruines, les Enxors ont trouvé un vieux livre de vampires. Depuis, l'un d'eux porte une cape… et ne supporte plus le soleil : à la lumière, son encre s'évapore. Le jour se lève. Rentre au cercueil en passant d'ombre en ombre.",
     controls: "ZQSD / flèches, ou maintiens le clic. Les ombres tournent et raccourcissent : ne traîne pas. Bonus : ramasse les gouttes d'encre.",
 
@@ -295,6 +296,7 @@
           }
           sh = computeShadows(sunAt(t));
           player.shade = inShadow(player.x, player.y);
+          Sound.loop("sizzle", player.shade ? 0 : 0.18, 5200);
           if (player.shade) ink = Math.min(100, ink + 40 * dt);
           else {
             ink -= 32 * dt;
@@ -304,6 +306,7 @@
             if (!d.taken && Math.hypot(d.x - player.x, d.y - player.y) < 24) {
               d.taken = true;
               dropsTotal++;
+              Sound.play("drop");
               burst(d.x, d.y, 10, INK);
             }
           }
@@ -314,11 +317,15 @@
             deaths++;
             dropsTotal -= drops.filter((d) => d.taken).length;
             burst(player.x, player.y - 18, 30, INK, 160);
+            Sound.loop("sizzle", 0);
+            Sound.play("die");
           } else if (Math.hypot(player.x - L.goal.x, player.y - L.goal.y) < 32) {
             state = "won";
             stateT = 0;
             score += 300 + Math.max(0, Math.round(600 - levelTime * 6)) + drops.filter((d) => d.taken).length * 100;
             burst(L.goal.x, L.goal.y, 24, "#e9b04a", 140);
+            Sound.loop("sizzle", 0);
+            Sound.play("win");
           }
         } else if (state === "dead" && stateT > 1.6) {
           resetLevel();
@@ -512,6 +519,7 @@
       }
       function stop() {
         running = false;
+        Sound.loop("sizzle", 0);
         cancelAnimationFrame(raf);
         window.removeEventListener("resize", resize);
         window.removeEventListener("keydown", onKey);

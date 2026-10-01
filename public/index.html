@@ -15,7 +15,10 @@
 
   <div id="hud" hidden>
     <div id="hud-day" class="chip hud-day"></div>
-    <div id="hud-online" class="chip hud-online"></div>
+    <div class="hud-right">
+      <div id="hud-online" class="chip"></div>
+      <div class="chip sound-toggles"></div>
+    </div>
     <div id="hud-help" class="chip hud-help"></div>
     <div id="emotes" class="chip emotes"></div>
     <div id="prompt" class="prompt" hidden></div>
@@ -50,6 +53,7 @@
     <div class="game-top">
       <button id="game-quit" class="btn ghost tiny">← Village</button>
       <span id="game-title"></span>
+      <div class="sound-toggles game-sound"></div>
     </div>
     <div id="game-stage" class="game-stage"></div>
   </div>
@@ -58,6 +62,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/themes.js"></script>
+  <script src="js/audio.js"></script>
   <script src="js/ink.js"></script>
   <script src="js/village.js"></script>
   <script src="js/interior.js"></script>

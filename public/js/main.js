@@ -18,6 +18,7 @@
     lastSent: 0, sentX: 0, sentY: 0, sentZone: "",
     ball: { x: 1500, y: 1580, z: 0, tx: 1500, ty: 1580, tz: 0 },
     pops: [], sparks: [], fireflies: [], sky: { dark: 0, dusk: 0 }, skyAt: -1, lastBurst: 0,
+    act: null, fish: null, wall: [], fishing: { records: {}, log: [] }, stoneGlow: [], lastStone: -1, crows: [], stepT: 0,
   };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
@@ -29,6 +30,15 @@
   const cabinOwner = () => (inCabin() ? S.players.get(S.zone.slice(6)) : null);
   // chez le propriétaire de La Canne À Pêche, les 31 pièces sont ouvertes
   const roomsOpen = (owner) => (owner?.owner ? 31 : unlocked());
+
+  // volume d'un son selon la distance (0 si on n'est pas au même endroit)
+  function hearing(x, y, zone = "village") {
+    const m = me();
+    if (!m || zone !== S.zone) return 0;
+    const d = zone === "village" ? Math.hypot(x - m.x, y - m.y) : Math.abs(x - m.x);
+    return clamp(1 - d / 900, 0, 1);
+  }
+  const hearEnt = (id) => { const e = S.ents.get(id); return e ? hearing(e.x, e.y, e.zone) : 0; };
 
   function el(tag, props = {}, ...kids) {
     const n = document.createElement(tag);
@@ -93,14 +103,36 @@
     });
     socket.on("init", (data) => onInit(data, auth.teamCode));
     socket.on("state", (list) => {
-      for (const [id, x, y, zone] of list) {
+      for (const [id, x, y, zone, act] of list) {
         if (id === S.me?.id) continue;
         let e = S.ents.get(id);
         if (!e) S.ents.set(id, (e = makeEnt(id, x, y, zone)));
         if (e.zone !== zone) Object.assign(e, { x, y, zone }); // changement de lieu : pas de glissade
         e.tx = x;
         e.ty = y;
+        e.act = act || null;
       }
+    });
+    socket.on("wall", (w) => {
+      S.wall = w;
+      if (S.panel?.type === "board") renderPanel();
+    });
+    socket.on("note", ({ id, i }) => {
+      if (id === S.me?.id) return;
+      S.stoneGlow[i] = performance.now() / 1000;
+      Sound.play("note", hearing(V.STONES[i].x, V.STONES[i].y), i);
+    });
+    socket.on("fish", ({ id, catch: c, fishing }) => {
+      S.fishing = fishing;
+      const e = S.ents.get(id);
+      const text = c.junk ? `${c.name}…` : `${c.name} · ${c.size} cm${c.record ? " · record !" : ""}`;
+      if (e) S.pops.push({ x: e.x, y: e.y - 70, text, t: performance.now() / 1000, color: c.rare ? "#c9871a" : c.junk ? "#6b6170" : "#3e7cb1", dur: 3 });
+      Sound.play(c.junk ? "junk" : "catch", id === S.me?.id ? 1 : hearEnt(id));
+      if (id === S.me?.id) {
+        toast(c.junk ? `Tu as remonté : ${c.name}. Un vestige des humains…` : `Tu as pêché : ${c.name} (${c.size} cm)${c.record ? ", nouveau record !" : ""}`);
+        if (S.fish) S.fish = { state: "wait", biteAt: performance.now() / 1000 + 3 + Math.random() * 6 };
+      }
+      if (S.panel?.type === "records") renderPanel();
     });
     socket.on("player:online", ({ id, x, y, zone }) => {
       if (id !== S.me?.id) S.ents.set(id, makeEnt(id, x, y, zone));
@@ -119,14 +151,17 @@
     socket.on("chat", ({ id, text }) => {
       const e = S.ents.get(id);
       if (e) { e.chat = text; e.chatUntil = performance.now() + 6000; }
+      Sound.play("chat", id === S.me?.id ? 0.6 : hearEnt(id));
     });
     socket.on("emote", ({ id, type }) => {
       const e = S.ents.get(id);
       if (e) { e.emote = type; e.emoteAt = performance.now() / 1000; }
+      Sound.play(type, hearEnt(id));
     });
     socket.on("ball", ([x, y, z]) => Object.assign(S.ball, { tx: x, ty: y, tz: z }));
     socket.on("kick", ({ id, combo }) => {
       const b = S.ball;
+      Sound.play("kick", hearing(b.x, b.y));
       for (let i = 0; i < 8; i++) {
         const a = Math.random() * Math.PI * 2;
         S.sparks.push({ x: b.x, y: b.y - b.z, vx: Math.cos(a) * 90, vy: Math.sin(a) * 60, life: 0.5, max: 0.5, color: Ink.INK });
@@ -150,6 +185,10 @@
     if (prev) Object.assign(m, { x: prev.x, y: prev.y });
     m.zone = S.zone;
     if (data.ball) Object.assign(S.ball, { x: data.ball[0], y: data.ball[1], z: data.ball[2], tx: data.ball[0], ty: data.ball[1], tz: data.ball[2] });
+    S.wall = data.wall || [];
+    S.fishing = data.fishing || S.fishing;
+    for (const [id, , , , act] of data.online) if (S.ents.get(id)) S.ents.get(id).act = act || null;
+    if (!S.crows.length) spawnCrows();
     sendMove(true);
     setDay(data.day);
     rebuildWorld();
@@ -164,6 +203,10 @@
   }
 
   function setDay(d) {
+    if (S.day && d.unlocked > S.day.unlocked) {
+      Sound.play("day");
+      toast(`Minuit : la Source fait remonter un nouveau vestige, « ${THEMES[d.unlocked - 1]} » !`);
+    }
     S.day = d;
     S.dayAt = performance.now();
     updateDayHud();
@@ -212,6 +255,8 @@
     Object.assign(m, { zone: S.zone, x: 150, y: I.FY, face: 1 });
     S.target = S.pending = null;
     S.footprints = [];
+    stopActivity();
+    Sound.play("door");
     sendMove(true);
     rebuildWorld();
     updateHelp();
@@ -225,6 +270,7 @@
     S.zone = "village";
     Object.assign(m, { zone: "village" }, door || S.villagePos || { x: V.CENTER.x, y: V.CENTER.y + 100 });
     S.target = S.pending = null;
+    Sound.play("door");
     sendMove(true);
     rebuildWorld();
     updateHelp();
@@ -240,13 +286,20 @@
     if (!S.me) return;
     if (inCabin()) return rebuildInterior();
     const { CENTER: c, HOUSE: h } = V;
+    const { RECORDS: rs, BOARD: bd, FIRE: fi } = V;
     S.solids = [
       { x: c.x - 95, y: c.y - 38, w: 190, h: 72 },
       { x: h.x - 158, y: h.y - 50, w: 316, h: 50 },
+      { x: rs.x - 6, y: rs.y - 8, w: 12, h: 10 },
+      { x: bd.x - 70, y: bd.y - 14, w: 140, h: 18 },
+      { x: fi.x - 32, y: fi.y - 16, w: 64, h: 30 },
     ];
     S.inter = [
       { kind: "source", x: c.x, y: c.y, r: 150, goX: c.x, goY: c.y + 70, label: "Regarder la Source", hit: { x: c.x - 105, y: c.y - 50, w: 210, h: 100 } },
       { kind: "house", x: h.x, y: h.y + 26, r: 70, label: S.me.owner ? "Rentrer chez toi" : "La Canne À Pêche", hit: { x: h.x - 190, y: h.y - 310, w: 380, h: 320 } },
+      { kind: "records", x: rs.x, y: rs.y + 20, r: 60, label: "Lire les records de pêche", hit: { x: rs.x - 80, y: rs.y - 100, w: 160, h: 100 } },
+      { kind: "board", x: bd.x, y: bd.y + 24, r: 75, label: "Lire le mur des mots", hit: { x: bd.x - 85, y: bd.y - 130, w: 170, h: 130 } },
+      ...V.SEATS.map((s, i) => ({ kind: "seat", id: "seat" + i, x: s.x, y: s.y + 26, r: 40, label: "S'asseoir près du feu", seat: s })),
     ];
     for (const p of S.players.values()) {
       if (p.plot == null) continue;
@@ -282,7 +335,25 @@
   function blocked(x, y) {
     if (inCabin()) return x < 30 || x > (roomsOpen(cabinOwner()) + 1) * I.RW - 30;
     if (x < 20 || y < 40 || x > V.W - 20 || y > V.H - 20) return true;
+    if (pondDist(x, y) < 1.08) return true; // on ne marche pas sur l'eau
     return S.solids.some((b) => x > b.x - 12 && x < b.x + b.w + 12 && y > b.y - 6 && y < b.y + b.h + 6);
+  }
+
+  // distance « normalisée » au centre de l'étang : 1 = le bord de l'eau
+  const pondDist = (x, y) => Math.hypot((x - V.POND.x) / V.POND.rx, (y - V.POND.y) / V.POND.ry);
+  const bobberOf = (e) => {
+    const k = 0.5 / Math.max(1, pondDist(e.x, e.y));
+    return { x: V.POND.x + (e.x - V.POND.x) * k, y: V.POND.y + (e.y - V.POND.y) * k };
+  };
+
+  function setAct(act) {
+    if (S.act === act) return;
+    S.act = act;
+    S.socket.emit("act", act);
+  }
+  function stopActivity() {
+    S.fish = null;
+    if (S.act) setAct(null);
   }
 
   const sameInter = (a, b) => a && b && a.kind === b.kind && a.id === b.id && a.day === b.day;
@@ -344,9 +415,37 @@
       if (!moved) { S.target = null; m.moving = false; }
       if (Math.abs(dx) > 0.2) m.face = Math.sign(dx);
     }
+    if (m.moving) {
+      stopActivity();
+      if (t - S.stepT > 0.3) { S.stepT = t; Sound.play("step", 1, inside); }
+    }
     if ((m.x !== S.sentX || m.y !== S.sentY || S.zone !== S.sentZone) && t - S.lastSent > 0.066) {
       sendMove();
       S.lastSent = t;
+    }
+    m.act = S.act;
+
+    // pêche : attendre que ça morde, puis ferrer à temps
+    if (S.fish?.state === "wait" && t >= S.fish.biteAt) {
+      S.fish = { state: "bite", until: t + 1 };
+      Sound.play("plouf");
+    } else if (S.fish?.state === "bite" && t > S.fish.until) {
+      S.fish = { state: "wait", biteAt: t + 3 + Math.random() * 6 };
+      Sound.play("miss");
+      toast("Raté, il s'est échappé…");
+    } else if (S.fish?.state === "reel" && t > S.fish.until) {
+      S.fish = { state: "wait", biteAt: t + 3 + Math.random() * 6 };
+    }
+
+    // pierres musicales
+    if (!inside) {
+      const i = V.STONES.findIndex((s) => Math.hypot(s.x - m.x, s.y - m.y) < s.r + 4);
+      if (i >= 0 && i !== S.lastStone) {
+        S.stoneGlow[i] = t;
+        Sound.play("note", 1, i);
+        S.socket.emit("note", i);
+      }
+      S.lastStone = i;
     }
 
     S.near = null;
@@ -355,10 +454,23 @@
       const d = inside ? Math.abs(it.x - m.x) : Math.hypot(it.x - m.x, it.y - m.y);
       if (d < it.r && d < best) { best = d; S.near = it; }
     }
+    if (!inside && !S.near) {
+      const pd = pondDist(m.x, m.y);
+      if (pd < 1.5) S.near = { kind: "pond", x: m.x, y: m.y, r: 1, label: "" };
+    }
+    if (S.near?.kind === "pond") S.near.label = !S.fish ? "Pêcher" : S.fish.state === "bite" ? "FERRER !" : "Ranger la canne";
+    if (S.near?.kind === "seat" && S.act === "sit") S.near.label = "Se lever";
     if (S.pending && sameInter(S.pending, S.near)) interact(S.near);
     const prompt = $("prompt");
     prompt.hidden = !S.near || !!S.panel;
+    prompt.classList.toggle("urgent", S.fish?.state === "bite");
     if (S.near) prompt.textContent = `E · ${S.near.label}`;
+
+    // ambiance sonore et musique
+    const fireV = inside ? 0 : clamp(1 - Math.hypot(m.x - V.FIRE.x, m.y - V.FIRE.y) / 520, 0, 1);
+    const waterV = inside ? 0 : clamp(1.6 - pondDist(m.x, m.y) / 2.2, 0, 1);
+    Sound.ambience({ fire: fireV, water: waterV, crickets: !inside && S.sky.dark > 0.3 ? 0.7 : 0 });
+    Sound.setMood(inside ? "inside" : S.sky.dark > 0.3 ? "night" : "day");
 
     for (const e of S.ents.values()) {
       if (e === m) continue;
@@ -401,6 +513,11 @@
         const a = (i / 28) * Math.PI * 2, v = 120 + Math.random() * 60;
         S.sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1.2, max: 1.2, color: c, glow: true });
       }
+      Sound.play("firework", hearing(x, y + 200) * 0.8);
+    }
+    // braises du feu de camp
+    if (!inside && Math.random() < dt * 6) {
+      S.sparks.push({ x: V.FIRE.x + (Math.random() - 0.5) * 20, y: V.FIRE.y - 30, vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 40, life: 1.4, max: 1.4, color: "#e9b04a" });
     }
     for (const p of S.sparks) {
       p.life -= dt;
@@ -410,7 +527,8 @@
       p.vy = p.vy * 0.96 + (p.glow ? 40 * dt : 0);
     }
     S.sparks = S.sparks.filter((p) => p.life > 0);
-    S.pops = S.pops.filter((p) => t - p.t < 1.4);
+    S.pops = S.pops.filter((p) => t - p.t < (p.dur || 1.4));
+    if (!inside) updateCrows(dt, t);
 
     // lucioles la nuit, autour du joueur
     if (!inside && S.sky.dark > 0.3) {
@@ -421,6 +539,57 @@
         if (Math.abs(f.x - m.x) > 700 || Math.abs(f.y - m.y) > 500) { f.x = m.x + (Math.random() - 0.5) * 900; f.y = m.y + (Math.random() - 0.5) * 600; }
       }
     } else S.fireflies.length = 0;
+  }
+
+  // ---------- Corbeaux ----------
+
+  function crowSpot() {
+    for (let i = 0; i < 40; i++) {
+      const x = 200 + Math.random() * (V.W - 400), y = 200 + Math.random() * (V.H - 400);
+      if (!blocked(x, y) && pondDist(x, y) > 1.3) return { x, y };
+    }
+    return { x: V.CENTER.x + 300, y: V.CENTER.y + 300 };
+  }
+
+  function spawnCrows() {
+    S.crows = Array.from({ length: 10 }, () => ({ ...crowSpot(), z: 0, state: "ground", face: 1, peck: false, timer: Math.random() * 3, ph: Math.random() * 9, vx: 0, vy: 0 }));
+  }
+
+  function updateCrows(dt, t) {
+    const people = [...S.ents.values()].filter((e) => e.zone === "village");
+    for (const c of S.crows) {
+      c.timer -= dt;
+      if (c.state === "ground") {
+        if (c.timer <= 0) { c.peck = !c.peck; c.timer = 0.6 + Math.random() * 2; if (Math.random() < 0.3) c.face *= -1; }
+        const scare = people.find((e) => Math.hypot(e.x - c.x, e.y - c.y) < 110);
+        if (scare) {
+          const a = Math.atan2(c.y - scare.y, c.x - scare.x) + (Math.random() - 0.5);
+          Object.assign(c, { state: "fly", vx: Math.cos(a) * 260, vy: Math.sin(a) * 200, timer: 1.6 + Math.random() * 1.4 });
+          c.face = Math.sign(c.vx) || 1;
+          const v = hearing(c.x, c.y);
+          Sound.play("flap", v);
+          if (Math.random() < 0.6) Sound.play("caw", v);
+        }
+      } else if (c.state === "fly") {
+        c.x = clamp(c.x + c.vx * dt, 60, V.W - 60);
+        c.y = clamp(c.y + c.vy * dt, 80, V.H - 60);
+        c.z += (110 - c.z) * Math.min(1, dt * 3);
+        if (c.timer <= 0) {
+          const spot = crowSpot();
+          const a = Math.atan2(spot.y - c.y, spot.x - c.x);
+          Object.assign(c, { state: "land", tx: spot.x, ty: spot.y, vx: Math.cos(a) * 220, vy: Math.sin(a) * 220 });
+          c.face = Math.sign(c.vx) || 1;
+        }
+      } else {
+        const d = Math.hypot(c.tx - c.x, c.ty - c.y);
+        if (d < 10) Object.assign(c, { state: "ground", z: 0, timer: 1 });
+        else {
+          c.x += c.vx * dt;
+          c.y += c.vy * dt;
+          c.z = Math.min(c.z, Math.max(0, d * 0.4));
+        }
+      }
+    }
   }
 
   function drawBall(t) {
@@ -455,6 +624,9 @@
     for (const l of V.lamps) if (vis(l.x, l.y)) L.push({ x: l.x, y: l.y + 30, r: 190, k: 1 });
     L.push({ x: V.CENTER.x, y: V.CENTER.y, r: 280, k: 1, color: "rgba(233,176,74,.25)" });
     L.push({ x: V.HOUSE.x, y: V.HOUSE.y - 60, r: 260 });
+    L.push({ x: V.FIRE.x, y: V.FIRE.y - 20, r: 300 + Math.sin(performance.now() / 90) * 10, k: 1, color: "rgba(255,140,50,.35)" });
+    L.push({ x: V.BOARD.x, y: V.BOARD.y - 60, r: 120, k: 0.6 });
+    L.push({ x: (V.STONES[0].x + V.STONES[7].x) / 2, y: V.STONES[3].y, r: 220, k: 0.6, color: "rgba(150,120,230,.18)" });
     for (const e of S.ents.values()) if (e.zone === "village" && vis(e.x, e.y)) L.push({ x: e.x, y: e.y - 20, r: 90, k: 0.7 });
     if (vis(S.ball.x, S.ball.y)) L.push({ x: S.ball.x, y: S.ball.y, r: 60, k: 0.4 });
     return L;
@@ -501,12 +673,47 @@
   function drawEnt(e, t, scale = 1) {
     const p = S.players.get(e.id);
     const et = t - e.emoteAt;
-    const opts = { seed: e.seed, color: p?.color, moving: e.moving, face: e.face, rod: p?.owner, emote: e.emote, et };
-    if (scale === 1) return Ink.enxor(ctx, e.x, e.y, t, opts);
+    const fishing = e.act === "fish" && e.zone === "village";
+    const face = fishing ? Math.sign(V.POND.x - e.x) || 1 : e.face;
+    const opts = { seed: e.seed, color: p?.color, moving: e.moving, face, rod: p?.owner || fishing, emote: e.emote, et };
+    if (fishing) drawLine(e, face, t);
+    const sy = e.act === "sit" ? 0.82 : 1;
     ctx.save();
     ctx.translate(e.x, e.y);
-    ctx.scale(scale, scale);
+    ctx.scale(scale, scale * sy);
     Ink.enxor(ctx, 0, 0, t, opts);
+    ctx.restore();
+  }
+
+  // fil de pêche du bout de la canne jusqu'au bouchon
+  function drawLine(e, face, t) {
+    const b = bobberOf(e);
+    const mine = e.id === S.me?.id;
+    const bite = mine && S.fish?.state === "bite";
+    const by = b.y + (bite ? 4 + Math.sin(t * 30) * 3 : Math.sin(t * 2 + e.seed) * 1.5);
+    const tipX = e.x + face * 38, tipY = e.y - 50;
+    ctx.save();
+    ctx.strokeStyle = Ink.INK;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.quadraticCurveTo((tipX + b.x) / 2, Math.max(tipY, by) + 20, b.x, by - 4);
+    ctx.stroke();
+    ctx.fillStyle = "#b3261e";
+    ctx.beginPath();
+    ctx.arc(b.x, by - 4, 4, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = Ink.PAPER;
+    ctx.beginPath();
+    ctx.arc(b.x, by - 4, 4, 0, Math.PI);
+    ctx.fill();
+    ctx.stroke();
+    if (bite) {
+      ctx.strokeStyle = "rgba(239,229,208,.8)";
+      ctx.beginPath();
+      ctx.ellipse(b.x, by, 10 + Math.sin(t * 20) * 3, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -544,7 +751,13 @@
 
     const vis = (x, y) => x > cam.x - 260 && x < cam.x + vw + 260 && y > cam.y - 60 && y < cam.y + vh + 480;
     const here = [...S.ents.values()].filter((e) => e.zone === "village" && vis(e.x, e.y));
+    if (vis(V.POND.x, V.POND.y)) V.drawPond(ctx, t, S.sky.dark);
+    if (vis(V.STONES[3].x, V.STONES[3].y)) V.drawStones(ctx, t, S.stoneGlow);
     const items = [];
+    if (vis(V.RECORDS.x, V.RECORDS.y)) items.push({ y: V.RECORDS.y, draw: () => V.drawRecordsSign(ctx, t) });
+    if (vis(V.FIRE.x, V.FIRE.y)) items.push({ y: V.FIRE.y, draw: () => V.drawFire(ctx, t) });
+    if (vis(V.BOARD.x, V.BOARD.y)) items.push({ y: V.BOARD.y, draw: () => V.drawBoard(ctx, t, S.wall.length) });
+    for (const c of S.crows) if (vis(c.x, c.y)) items.push({ y: c.y, draw: () => V.drawCrow(ctx, c, t) });
     for (const p of S.players.values()) {
       if (p.plot == null) continue;
       const pl = V.plots[p.plot];
@@ -583,10 +796,10 @@
     }
     ctx.restore();
     for (const p of S.pops) {
-      const k = (t - p.t) / 1.4;
+      const k = (t - p.t) / (p.dur || 1.4);
       ctx.save();
-      ctx.globalAlpha = 1 - k;
-      Ink.word(ctx, p.text, p.x, p.y - k * 30, 18, "#e0662f");
+      ctx.globalAlpha = Math.min(1, (1 - k) * 2);
+      Ink.word(ctx, p.text, p.x, p.y - k * 30, 18, p.color || "#e0662f");
       ctx.restore();
     }
 
@@ -694,6 +907,9 @@
     S.target = null;
     S.pending = null;
     S.keys.clear();
+    if (it.kind === "pond") return fishAction();
+    if (it.kind === "seat") return toggleSeat(it.seat);
+    if (it.kind !== "frame") Sound.play("click");
     if (it.kind === "cabin") enterCabin(it.id);
     else if (it.kind === "house" && S.me.owner) enterCabin(S.me.id);
     else if (it.kind === "exit") exitCabin();
@@ -724,6 +940,81 @@
     else if (type === "house") renderHouse(body);
     else if (type === "bench") renderBench(body);
     else if (type === "frame") renderFrame(body, S.panel.day);
+    else if (type === "records") renderRecords(body);
+    else if (type === "board") renderBoard(body);
+  }
+
+  // ---------- Activités du village ----------
+
+  function fishAction() {
+    const t = performance.now() / 1000;
+    if (!S.fish) {
+      S.fish = { state: "wait", biteAt: t + 3 + Math.random() * 6 };
+      setAct("fish");
+      Sound.play("plouf", 0.5);
+    } else if (S.fish.state === "bite") {
+      S.fish = { state: "reel", until: t + 3 };
+      S.socket.emit("fish:catch");
+    } else if (S.fish.state === "wait") {
+      stopActivity();
+    }
+  }
+
+  function toggleSeat(seat) {
+    if (S.act === "sit") return stopActivity();
+    const m = me();
+    m.x = seat.x;
+    m.y = seat.y + 6;
+    m.face = Math.sign(V.FIRE.x - seat.x) || 1;
+    sendMove(true);
+    setTimeout(() => setAct("sit"), 80);
+    Sound.play("sit");
+  }
+
+  const ago = (at) => {
+    const m = Math.round((Date.now() - at) / 60000);
+    if (m < 1) return "à l'instant";
+    if (m < 60) return `il y a ${m} min`;
+    const h = Math.round(m / 60);
+    return h < 24 ? `il y a ${h} h` : `il y a ${Math.round(h / 24)} j`;
+  };
+
+  function renderRecords(body) {
+    const recs = Object.entries(S.fishing.records).sort((a, b) => b[1].size - a[1].size);
+    body.append(
+      el("p", { class: "eyebrow", text: "L'étang" }),
+      el("h2", { class: "script", text: "Records de pêche" }),
+      el("p", { class: "muted", text: "Approche-toi de l'eau et appuie sur E pour lancer ta ligne. Quand le bouchon plonge, appuie vite sur E pour ferrer. Chaque vestige débloqué ajoute son poisson dans l'étang, et celui du jour est plus rare." }),
+      recs.length
+        ? el("table", { class: "records" },
+          el("tr", {}, el("th", { text: "Prise" }), el("th", { text: "Taille" }), el("th", { text: "Par" })),
+          recs.map(([name, r]) => el("tr", {}, el("td", { text: name }), el("td", { text: `${r.size} cm` }), el("td", { text: r.pseudo }))))
+        : el("p", { class: "muted", text: "Aucun record pour l'instant. À toi de jouer !" }),
+      S.fishing.log.length > 0 && el("h3", { text: "Dernières prises" }),
+      el("ul", { class: "feed" }, S.fishing.log.slice(0, 10).map((c) =>
+        el("li", {}, el("b", { text: c.pseudo, style: `color:${c.color}` }), ` · ${c.name}${c.junk ? "" : ` (${c.size} cm)`} · `, el("span", { class: "muted", text: ago(c.at) })))),
+    );
+  }
+
+  function renderBoard(body) {
+    const input = el("input", { maxlength: "120", placeholder: "Un mot pour la team…", autocomplete: "off" });
+    const form = el("form", { class: "post-form", onsubmit: (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      S.socket.emit("wall:post", text);
+      Sound.play("post");
+      input.value = "";
+    } }, input, el("button", { class: "btn", type: "submit", text: "Épingler" }));
+    body.append(
+      el("p", { class: "eyebrow", text: "Sur la place" }),
+      el("h2", { class: "script", text: "Le mur des mots" }),
+      el("p", { class: "muted", text: "Laisse un petit mot pour la team : un encouragement, une blague, un avis sur un dessin… (un message toutes les 20 secondes)" }),
+      form,
+      el("ul", { class: "wall" }, S.wall.map((m) =>
+        el("li", {}, el("p", { text: m.text }), el("span", {}, el("b", { text: m.pseudo, style: `color:${m.color}` }), ` · ${ago(m.at)}`)))),
+    );
+    setTimeout(() => input.focus(), 50);
   }
 
   const row = (label, control) => el("div", { class: "row" }, el("span", { class: "row-label", text: label }), control);
@@ -814,7 +1105,10 @@
     const game = Games.get(day);
     if (!game || day > unlocked()) return;
     closePanel();
+    stopActivity();
     S.keys.clear();
+    Sound.ambience({ fire: 0, water: 0, crickets: 0 });
+    Sound.setMood(game.music || "game");
     S.game = { day, game, stop: null };
     $("game").hidden = false;
     $("hud").hidden = true;
@@ -825,6 +1119,7 @@
   function stopGame() {
     if (S.game?.stop) S.game.stop();
     if (S.game) S.game.stop = null;
+    Sound.stopLoops();
   }
 
   function closeGame() {
@@ -857,6 +1152,7 @@
     const { day, game } = S.game;
     const stage = el("div", { class: "game-root" });
     $("game-stage").replaceChildren(stage);
+    Sound.play("start");
     let done = false;
     S.game.stop = game.start(stage, {
       finish(result) {
@@ -942,6 +1238,21 @@
   }
 
   // ---------- Démarrage ----------
+
+  // boutons musique / sons (dans le village et pendant les jeux)
+  function soundButtons() {
+    const p = Sound.prefs;
+    for (const box of document.querySelectorAll(".sound-toggles")) {
+      box.replaceChildren(...[["music", "♪ Musique"], ["sfx", "🔈 Sons"]].map(([k, label]) =>
+        el("button", { class: "sound-btn" + (p[k] ? "" : " off"), text: label, title: p[k] ? "Couper" : "Activer", onclick: (e) => {
+          Sound.ensure();
+          Sound.toggle(k);
+          soundButtons();
+          e.currentTarget?.blur();
+        } })));
+    }
+  }
+  soundButtons();
 
   updateHelp();
   const saved = loadAuth();

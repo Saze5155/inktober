@@ -20,6 +20,15 @@ window.Village = (() => {
   ring(780, 18);
   const lamps = []; // têtes des lampadaires, remplies par buildBackground()
 
+  // Les activités (mêmes positions que dans server/index.js pour le ballon)
+  const POND = { x: 930, y: 430, rx: 170, ry: 80 };
+  const RECORDS = { x: 1150, y: 540 };
+  const STONES = Array.from({ length: 8 }, (_, i) => ({ x: 1890 + i * 52, y: Math.round(450 - Math.sin((i / 7) * Math.PI) * 40), r: 21 }));
+  const FIRE = { x: 1250, y: 1510 };
+  const SEATS = [{ x: 1170, y: 1520 }, { x: 1330, y: 1520 }, { x: 1250, y: 1585 }, { x: 1250, y: 1440 }];
+  const BOARD = { x: 1770, y: 1470 };
+  const NOTE_COLORS = ["#b3261e", "#e0662f", "#e9b04a", "#5b8c5a", "#5bb3a0", "#3e7cb1", "#7d5ba6", "#d36b9c"];
+
   // ---------- Sprites (dessinés une fois, 3 variantes pour l'effet « trait qui bouillonne ») ----------
 
   const SCALE = 2;
@@ -395,6 +404,11 @@ window.Village = (() => {
       { x: CENTER.x, y: CENTER.y, r: 240 },
       { x: SIGN.x, y: SIGN.y, r: 60 },
       { x: HOUSE.x, y: HOUSE.y - 120, r: 310 },
+      { x: POND.x, y: POND.y, r: 230 },
+      { x: RECORDS.x, y: RECORDS.y, r: 50 },
+      ...STONES.map((s) => ({ x: s.x, y: s.y, r: 50 })),
+      { x: FIRE.x, y: FIRE.y, r: 130 },
+      { x: BOARD.x, y: BOARD.y, r: 80 },
     ];
     const free = (x, y, m) =>
       x > m && y > m && x < W - m && y < H - m &&
@@ -425,6 +439,214 @@ window.Village = (() => {
     g.fillStyle = v;
     g.fillRect(0, 0, W, H);
     return c;
+  }
+
+  // ---------- Activités ----------
+
+  function pondSprite(frame) {
+    return sprite(`pond|${frame}`, 440, 260, 220, 130, (g) => {
+      const r = Ink.rng(31 + frame * 7919);
+      const shore = Ink.ellipse(0, 0, POND.rx + 20, POND.ry + 16, 40);
+      Ink.fill(g, shore, r, "#d9ccb3");
+      Ink.hatch(g, shore, r, { gap: 7, alpha: 0.2 });
+      Ink.stroke(g, shore, r, { w: 1.6, closed: true, alpha: 0.6 });
+      const water = Ink.ellipse(0, 0, POND.rx, POND.ry, 40);
+      Ink.fill(g, water, r, "#41606f");
+      Ink.hatch(g, water, r, { gap: 8, color: PAPER, alpha: 0.12, angle: 0 });
+      Ink.stroke(g, water, r, { w: 2.4, closed: true });
+      for (const [x, y, s] of [[-90, -20, 16], [60, 30, 12], [110, -30, 10], [-30, 40, 9]]) {
+        Ink.fill(g, Ink.ellipse(x, y, s, s * 0.55, 12), r, "#5b8c5a", 0.8);
+        Ink.stroke(g, Ink.ellipse(x, y, s, s * 0.55, 12), r, { w: 1, closed: true, passes: 1, amp: 0.8, step: 6 });
+      }
+      // roseaux
+      for (let i = 0; i < 18; i++) {
+        const a = Math.PI * (0.65 + r() * 0.5) + (i % 2 ? Math.PI : 0);
+        const x = Math.cos(a) * (POND.rx + 6), y = Math.sin(a) * (POND.ry + 6);
+        const h = 22 + r() * 22;
+        Ink.stroke(g, [[x, y], [x + (r() - 0.5) * 8, y - h]], r, { w: 1.4, passes: 1, amp: 1 });
+        if (r() < 0.5) Ink.fill(g, Ink.ellipse(x, y - h + 4, 3, 7, 8), r, "#6b4426", 0.5);
+      }
+    });
+  }
+
+  function drawPond(ctx, t, dark) {
+    blit(ctx, pondSprite(boil(t)), POND.x, POND.y);
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(POND.x, POND.y, POND.rx - 2, POND.ry - 2, 0, 0, Math.PI * 2);
+    ctx.clip();
+    if (dark > 0.25) {
+      // reflet de la lune
+      ctx.fillStyle = `rgba(239,229,208,${0.5 * (dark / 0.62)})`;
+      ctx.beginPath();
+      ctx.ellipse(POND.x + 70, POND.y - 20, 16, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(239,229,208,.35)";
+    ctx.lineWidth = 1.2;
+    for (let k = 0; k < 4; k++) {
+      const p = (t * 0.25 + k / 4) % 1;
+      const cx = POND.x + Math.sin(k * 7.3) * 100, cy = POND.y + Math.cos(k * 3.1) * 40;
+      ctx.globalAlpha = 1 - p;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 6 + p * 30, 3 + p * 12, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function postSign(key, w, text, x, y, t) {
+    return sprite(`sign|${key}|${boil(t)}`, w + 20, 110, (w + 20) / 2, 100, (g) => {
+      const r = Ink.rng(Ink.hash(key) + boil(t) * 7919);
+      Ink.shadow(g, 0, 2, 12, 4);
+      Ink.stroke(g, [[0, 0], [0, -70]], r, { w: 3.5 });
+      Ink.fill(g, Ink.rect(-w / 2, -92, w, 28), r, "#d8c39a");
+      Ink.stroke(g, Ink.rect(-w / 2, -92, w, 28), r, { w: 2, closed: true, step: 10 });
+    });
+  }
+
+  function drawRecordsSign(ctx, t) {
+    blit(ctx, postSign("records", 150, "", RECORDS.x, RECORDS.y, t), RECORDS.x, RECORDS.y);
+    Ink.word(ctx, "Records de pêche", RECORDS.x, RECORDS.y - 78, 14, INK, 700);
+  }
+
+  function drawStones(ctx, t, glow) {
+    STONES.forEach((s, i) => {
+      const lit = Math.max(0, 1 - (t - (glow[i] || -9)) / 0.6);
+      Ink.shadow(ctx, s.x, s.y + 4, s.r + 2, 8, 0.18);
+      ctx.save();
+      ctx.fillStyle = "#d9ccb3";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y - lit * 3, s.r, s.r * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = NOTE_COLORS[i];
+      ctx.globalAlpha = 0.35 + lit * 0.65;
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y - lit * 3, s.r * 0.45, s.r * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (lit > 0) {
+        ctx.globalAlpha = lit;
+        Ink.word(ctx, "♪", s.x + Math.sin(i) * 8, s.y - 30 - (1 - lit) * 24, 18, NOTE_COLORS[i]);
+      }
+      ctx.restore();
+    });
+  }
+
+  function fireSprite(frame) {
+    return sprite(`fire|${frame}`, 300, 240, 150, 120, (g) => {
+      const r = Ink.rng(77 + frame * 7919);
+      // bûches pour s'asseoir
+      for (const s of SEATS) {
+        const x = s.x - FIRE.x, y = s.y - FIRE.y + 14;
+        Ink.shadow(g, x, y + 4, 34, 7);
+        const log = [[x - 30, y - 8], [x + 30, y - 8], [x + 30, y + 6], [x - 30, y + 6]];
+        Ink.fill(g, log, r, "#8a5a3a");
+        Ink.hatch(g, log, r, { gap: 4, alpha: 0.3, angle: 0 });
+        Ink.stroke(g, log, r, { w: 1.8, closed: true, step: 8 });
+        Ink.stroke(g, Ink.ellipse(x + 30, y - 1, 4, 7, 10), r, { w: 1.2, closed: true, passes: 1, step: 4 });
+      }
+      // cercle de pierres
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        const st = Ink.ellipse(Math.cos(a) * 30, Math.sin(a) * 14 + 4, 8, 5, 10);
+        Ink.fill(g, st, r, "#bdb2a0", 0.6);
+        Ink.stroke(g, st, r, { w: 1.2, closed: true, passes: 1, step: 4, amp: 0.8 });
+      }
+      Ink.stroke(g, [[-18, 6], [18, -4]], r, { w: 6, color: "#5a3a22", passes: 1 });
+      Ink.stroke(g, [[-18, -4], [18, 6]], r, { w: 6, color: "#5a3a22", passes: 1 });
+    });
+  }
+
+  function drawFire(ctx, t) {
+    blit(ctx, fireSprite(boil(t)), FIRE.x, FIRE.y);
+    const flames = [["#b3261e", 26, 1], ["#e0662f", 20, 0.85], ["#e9b04a", 12, 0.65]];
+    for (const [c, w, hk] of flames) {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.moveTo(FIRE.x - w, FIRE.y);
+      for (let i = 0; i <= 6; i++) {
+        const k = i / 6;
+        const x = FIRE.x - w + k * w * 2;
+        const h = (i % 2 ? 0.6 : 1) * 46 * hk * (0.8 + Math.sin(t * 9 + i * 1.7) * 0.2) * Math.sin(Math.PI * (0.15 + k * 0.7));
+        ctx.lineTo(x, FIRE.y - 4 - h);
+      }
+      ctx.lineTo(FIRE.x + w, FIRE.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  function drawBoard(ctx, t, count) {
+    const key = Math.min(8, count);
+    const s = sprite(`board|${key}|${boil(t)}`, 180, 150, 90, 140, (g) => {
+      const r = Ink.rng(919 + boil(t) * 7919);
+      Ink.shadow(g, 0, 2, 70, 8);
+      for (const x of [-60, 60]) Ink.stroke(g, [[x, 0], [x, -120]], r, { w: 4 });
+      const plank = Ink.rect(-80, -124, 160, 84);
+      Ink.fill(g, plank, r, "#a88a5f");
+      Ink.hatch(g, plank, r, { gap: 6, alpha: 0.25, angle: 0 });
+      Ink.stroke(g, plank, r, { w: 2.4, closed: true });
+      for (let i = 0; i < key; i++) {
+        const x = -66 + (i % 4) * 34 + (r() - 0.5) * 6, y = -114 + Math.floor(i / 4) * 36 + (r() - 0.5) * 4;
+        const note = Ink.rect(x, y, 26, 26);
+        Ink.fill(g, note, r, "#f6efe0", 0.8);
+        Ink.stroke(g, note, r, { w: 1, closed: true, passes: 1, step: 6, amp: 0.8 });
+        for (let l = 0; l < 3; l++) Ink.stroke(g, [[x + 4, y + 7 + l * 6], [x + 22, y + 7 + l * 6]], r, { w: 0.8, passes: 1, amp: 0.6, alpha: 0.6 });
+        g.fillStyle = NOTE_COLORS[i % 8];
+        g.beginPath(); g.arc(x + 13, y + 2, 2.5, 0, 7); g.fill();
+      }
+    });
+    blit(ctx, s, BOARD.x, BOARD.y);
+    Ink.word(ctx, "Le mur des mots", BOARD.x, BOARD.y - 136, 14, INK, 700);
+  }
+
+  // corbeaux d'encre (décor vivant, simulé sur chaque PC)
+  function drawCrow(ctx, c, t) {
+    const fly = c.state === "fly";
+    const y = c.y - c.z;
+    if (!fly) Ink.shadow(ctx, c.x, c.y + 2, 9, 3, 0.2);
+    else Ink.shadow(ctx, c.x, c.y + 2, 7, 2, 0.1);
+    ctx.save();
+    ctx.translate(c.x, y);
+    ctx.scale(c.face, 1);
+    ctx.fillStyle = INK;
+    const hop = !fly && c.peck ? Math.abs(Math.sin(t * 14)) * 3 : 0;
+    ctx.beginPath();
+    ctx.ellipse(0, -8, 9, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(7, -13 + hop, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(10, -14 + hop); ctx.lineTo(17, -12 + hop + hop); ctx.lineTo(10, -11 + hop);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-8, -9); ctx.lineTo(-16, -12); ctx.lineTo(-14, -6);
+    ctx.fill();
+    if (fly) {
+      const w = Math.sin(t * 22 + c.ph) * 10;
+      ctx.beginPath();
+      ctx.moveTo(-4, -10); ctx.lineTo(-2, -22 - w); ctx.lineTo(6, -11);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-1, -3); ctx.lineTo(-2, 1);
+      ctx.moveTo(3, -3); ctx.lineTo(3, 1);
+      ctx.stroke();
+    }
+    ctx.fillStyle = PAPER;
+    ctx.beginPath();
+    ctx.arc(8, -14 + hop, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   // ---------- Jour et nuit (heure de Paris) ----------
@@ -494,5 +716,9 @@ window.Village = (() => {
     ctx.restore();
   }
 
-  return { W, H, CENTER, HOUSE, COLORS, ROOFS, plots, lamps, buildBackground, drawCabin, drawHouse, drawSource, sky, drawNight };
+  return {
+    W, H, CENTER, HOUSE, COLORS, ROOFS, plots, lamps, POND, RECORDS, STONES, FIRE, SEATS, BOARD,
+    buildBackground, drawCabin, drawHouse, drawSource, drawPond, drawRecordsSign, drawStones, drawFire, drawBoard, drawCrow,
+    sky, drawNight,
+  };
 })();

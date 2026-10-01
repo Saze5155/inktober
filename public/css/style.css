@@ -83,7 +83,23 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .hud-day { top: 16px; left: 16px; display: grid; gap: 2px; }
 .hud-day strong { color: var(--gold); font-size: 18px; }
 .hud-day span { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
-.hud-online { top: 16px; right: 16px; color: #8fd18a; font-weight: 700; cursor: default; }
+.hud-right { position: fixed; top: 16px; right: 16px; display: grid; gap: 8px; justify-items: end; }
+.hud-right .chip { position: static; }
+#hud-online { color: #8fd18a; font-weight: 700; cursor: default; }
+.sound-toggles { display: flex; gap: 6px; padding: 6px; }
+.sound-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  background: #151414;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.sound-btn.off { color: var(--muted); text-decoration: line-through; }
+.game-sound { margin-left: auto; padding: 0; }
 .hud-help { bottom: 16px; left: 16px; color: var(--muted); font-size: 14px; }
 .hud-help b { color: var(--text); }
 
@@ -116,6 +132,9 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
   pointer-events: none;
 }
+
+.prompt.urgent { background: var(--orange); color: #fff; animation: pulse .25s infinite alternate; }
+@keyframes pulse { to { transform: translateX(-50%) scale(1.08); } }
 
 .chat-form { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); width: min(520px, calc(100% - 32px)); }
 .chat-form input { width: 100%; background: rgba(21, 20, 20, .95); }
@@ -203,6 +222,20 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 }
 .game-row > div { display: grid; gap: 2px; }
 .game-row.today { border-color: var(--gold); }
+
+.records { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.records th { text-align: left; color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.records td { padding: 7px 8px; border-bottom: 1px solid #2a2523; }
+.records td:nth-child(2) { color: var(--gold); font-weight: 700; font-variant-numeric: tabular-nums; }
+.feed { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+
+.post-form { display: flex; gap: 8px; margin: 14px 0 18px; }
+.post-form input { flex: 1; min-width: 0; }
+.wall { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.wall li { background: var(--paper); color: var(--ink); border-radius: 4px; padding: 12px 14px; transform: rotate(-.6deg); box-shadow: 0 3px 10px rgba(0, 0, 0, .3); }
+.wall li:nth-child(2n) { transform: rotate(.8deg); }
+.wall li p { margin: 0 0 8px; line-height: 1.35; overflow-wrap: anywhere; }
+.wall li span { font-size: 13px; color: #6b6170; }
 
 /* ---------- Jeux ---------- */
 
