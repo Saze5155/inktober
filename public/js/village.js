@@ -18,6 +18,7 @@ window.Village = (() => {
   }
   ring(430, 10);
   ring(780, 18);
+  const lamps = []; // têtes des lampadaires, remplies par buildBackground()
 
   // ---------- Sprites (dessinés une fois, 3 variantes pour l'effet « trait qui bouillonne ») ----------
 
@@ -219,11 +220,11 @@ window.Village = (() => {
 
   // ---------- Dessin en direct ----------
 
-  function drawCabin(ctx, x, y, player, ownerOnline, t, img) {
+  function drawCabin(ctx, x, y, player, ownerOnline, t, img, night) {
     blit(ctx, cabinSprite(player.cabin, Ink.hash(player.id), boil(t)), x, y);
 
-    if (ownerOnline) {
-      // fenêtre allumée + fumée quand le propriétaire est connecté
+    if (ownerOnline || night) {
+      // fenêtre allumée la nuit, et fumée quand le propriétaire est connecté
       ctx.save();
       const glow = ctx.createRadialGradient(x + 29, y - 49, 2, x + 29, y - 49, 40);
       glow.addColorStop(0, "rgba(255,200,100,.45)");
@@ -238,7 +239,7 @@ window.Village = (() => {
       ctx.moveTo(x + 29, y - 57); ctx.lineTo(x + 29, y - 41);
       ctx.moveTo(x + 21, y - 49); ctx.lineTo(x + 37, y - 49);
       ctx.stroke();
-      for (let k = 0; k < 3; k++) {
+      for (let k = 0; ownerOnline && k < 3; k++) {
         const p = (t * 0.35 + k / 3) % 1;
         ctx.globalAlpha = (1 - p) * 0.5;
         ctx.beginPath();
@@ -412,7 +413,8 @@ window.Village = (() => {
     scatter(flat, 300, 4, (x, y) => Ink.grass(g, x, y, r));
     scatter(flat, 100, 4, (x, y) => Ink.stone(g, x, y, r));
     scatter(tall, 16, 60, (x, y) => Ink.ruin(g, x, y, r));
-    scatter(tall, 9, 30, (x, y) => Ink.lamp(g, x, y, r));
+    lamps.length = 0;
+    scatter(tall, 9, 30, (x, y) => lamps.push(Ink.lamp(g, x, y, r)));
     scatter(tall, 36, 50, (x, y) => Ink.deadTree(g, x, y, r, 90 + r() * 90));
     for (const d of flat) d.fn(d.x, d.y);
     tall.sort((a, b) => a.y - b.y).forEach((d) => d.fn(d.x, d.y));
@@ -425,5 +427,72 @@ window.Village = (() => {
     return c;
   }
 
-  return { W, H, CENTER, HOUSE, COLORS, ROOFS, plots, buildBackground, drawCabin, drawHouse, drawSource };
+  // ---------- Jour et nuit (heure de Paris) ----------
+
+  const hourFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "numeric", minute: "numeric", hourCycle: "h23" });
+  function parisHour() {
+    const forced = location.hostname === "localhost" && new URLSearchParams(location.search).get("heure");
+    if (forced) return Number(forced);
+    const p = Object.fromEntries(hourFmt.formatToParts(new Date()).map((x) => [x.type, x.value]));
+    return Number(p.hour) + Number(p.minute) / 60;
+  }
+
+  // dark : 0 (plein jour) → 0.62 (nuit) ; dusk : teinte orangée du crépuscule et de l'aube
+  function sky() {
+    const h = parisHour();
+    const ramp = (a, b) => Math.max(0, Math.min(1, (h - a) / (b - a)));
+    const dark = 0.62 * (h >= 12 ? ramp(18.5, 21) : 1 - ramp(6, 8));
+    const dusk = Math.max(0, 1 - Math.abs(h - 19.5) / 1.5) + Math.max(0, 1 - Math.abs(h - 7) / 1.2);
+    return { dark, dusk: Math.min(1, dusk), h };
+  }
+
+  let nightC = null, ng = null;
+  function drawNight(ctx, cam, vw, vh, dpr, s, lights) {
+    if (s.dusk > 0.01) {
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = `rgba(235,120,60,${s.dusk * 0.13})`;
+      ctx.fillRect(0, 0, vw, vh);
+      ctx.restore();
+    }
+    if (s.dark < 0.01) return;
+    const w = Math.round(vw * dpr), h = Math.round(vh * dpr);
+    if (!nightC || nightC.width !== w || nightC.height !== h) {
+      nightC = document.createElement("canvas");
+      nightC.width = w;
+      nightC.height = h;
+      ng = nightC.getContext("2d");
+    }
+    ng.setTransform(1, 0, 0, 1, 0, 0);
+    ng.globalCompositeOperation = "source-over";
+    ng.clearRect(0, 0, w, h);
+    ng.fillStyle = `rgba(8,12,46,${s.dark * 1.15})`;
+    ng.fillRect(0, 0, w, h);
+    ng.globalCompositeOperation = "destination-out";
+    ng.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
+    for (const l of lights) {
+      const g = ng.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r);
+      g.addColorStop(0, `rgba(0,0,0,${l.k ?? 0.95})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ng.fillStyle = g;
+      ng.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2);
+    }
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(nightC, 0, 0);
+    // halo chaud des lumières
+    ctx.globalCompositeOperation = "lighter";
+    ctx.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
+    for (const l of lights) {
+      const r = l.r * 0.55;
+      const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, r);
+      g.addColorStop(0, l.color || `rgba(255,170,80,${0.22 * (s.dark / 0.62)})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(l.x - r, l.y - r, r * 2, r * 2);
+    }
+    ctx.restore();
+  }
+
+  return { W, H, CENTER, HOUSE, COLORS, ROOFS, plots, lamps, buildBackground, drawCabin, drawHouse, drawSource, sky, drawNight };
 })();

@@ -87,9 +87,25 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .hud-help { bottom: 16px; left: 16px; color: var(--muted); font-size: 14px; }
 .hud-help b { color: var(--text); }
 
+.emotes { bottom: 16px; right: 16px; display: flex; gap: 6px; padding: 6px; }
+.emote-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #151414;
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.emote-btn:hover { border-color: var(--gold); color: var(--gold); }
+.emote-btn kbd { position: absolute; right: 3px; bottom: 1px; font: 10px/1 inherit; color: var(--muted); }
+
 .prompt {
   position: fixed;
-  bottom: 70px;
+  bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--gold);
@@ -164,32 +180,57 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .seg button { font: inherit; background: transparent; color: var(--text); border: 0; padding: 6px 14px; cursor: pointer; }
 .seg button.on { background: var(--gold); color: var(--bg); font-weight: 700; }
 
-.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
-.slot {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  overflow: hidden;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-}
-.slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
-.slot-day, .slot-theme { position: relative; z-index: 1; }
-.slot-day { font-weight: 700; color: var(--gold); font-size: 20px; line-height: 1; }
-.slot-theme { font-size: 12px; text-transform: uppercase; letter-spacing: .03em; overflow-wrap: anywhere; }
-.slot.filled .slot-day, .slot.filled .slot-theme { text-shadow: 0 1px 4px #000, 0 0 2px #000; color: #fff; pointer-events: none; }
-.slot.locked { opacity: .4; }
-.slot.empty { border-style: dashed; }
-.slot-actions { position: relative; z-index: 1; margin-top: auto; display: flex; gap: 4px; flex-wrap: wrap; }
 
 .days { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px 14px; }
 .days li { color: var(--muted); display: flex; gap: 8px; }
 .days li b { width: 22px; text-align: right; }
 .days li.done { color: var(--text); }
 .days li.done b { color: var(--gold); }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.frame-preview { display: block; max-width: 100%; max-height: 50vh; margin: 8px 0; border-radius: 8px; cursor: zoom-in; }
+
+.games { display: grid; gap: 8px; margin: 16px 0 8px; }
+.game-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.game-row > div { display: grid; gap: 2px; }
+.game-row.today { border-color: var(--gold); }
+
+/* ---------- Jeux ---------- */
+
+.game { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
+.game-top { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+#game-title { color: var(--gold); font-weight: 700; }
+.game-stage { position: relative; flex: 1; overflow: hidden; }
+.game-root { position: absolute; inset: 0; }
+.game-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.game-card-wrap { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(10, 9, 11, .55); }
+.game-card {
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 26px 28px;
+  text-align: center;
+}
+.game-card h2 { font-size: 60px; line-height: .95; margin: 4px 0 12px; }
+.game-card .actions { justify-content: center; }
+.stars { font-size: 30px; color: var(--gold); margin: 0; letter-spacing: 4px; }
+.ranking { text-align: left; margin: 16px auto 0; padding: 0 0 0 24px; max-width: 280px; }
+.ranking li { padding: 3px 0; color: var(--muted); }
+.ranking li span { display: inline-block; min-width: 160px; color: var(--text); }
+.ranking li b { color: var(--gold); }
+.ranking li.me span { color: var(--gold); font-weight: 700; }
 
 .lightbox { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .88); cursor: zoom-out; padding: 24px; }
 .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }

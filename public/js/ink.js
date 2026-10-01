@@ -258,6 +258,7 @@ window.Ink = (() => {
     stroke(ctx, [[tx, ty], [tx + dir * 14, ty - 6], [tx + dir * 24, ty + 4]], r, { w: 2.4, step: 6 });
     const hx = tx + dir * 24, hy = ty + 4;
     fill(ctx, [[hx - 7, hy], [hx + 7, hy], [hx + 4, hy + 10], [hx - 4, hy + 10]], r, INK, 0.8);
+    return { x: hx, y: hy + 10 };
   }
 
   function branch(ctx, x, y, r, len, angle, depth, w) {
@@ -284,11 +285,17 @@ window.Ink = (() => {
   // ---------- Les Enxors ----------
 
   function enxor(ctx, x, y, t, o = {}) {
-    const { seed = 0, color = "#e9b04a", moving = false, face = 1, rod = false } = o;
+    const { seed = 0, color = "#e9b04a", moving = false, face = 1, rod = false, fangs = false } = o;
+    const emote = o.emote && o.et < 2.5 ? o.emote : null;
     const ph = seed * 1.7;
-    const bob = moving ? Math.abs(Math.sin(t * 11 + ph)) * 5 : Math.sin(t * 2 + ph) * 1.5;
+    let bob = moving ? Math.abs(Math.sin(t * 11 + ph)) * 5 : Math.sin(t * 2 + ph) * 1.5;
     const sq = moving ? Math.sin(t * 22 + ph) * 0.06 : Math.sin(t * 2.4 + ph) * 0.03;
-    const R = 17, cx = x, cy = y - 20 - bob;
+    let cx = x;
+    if (emote === "surprise") bob += Math.max(0, Math.sin(Math.min(o.et, 0.5) * 2 * Math.PI)) * 14;
+    if (emote === "danse") { cx += Math.sin(t * 9) * 6; bob += Math.abs(Math.sin(t * 9)) * 5; }
+    if (emote === "rire") cx += Math.sin(t * 45) * 1.5;
+    if (emote === "coeur") bob += Math.abs(Math.sin(t * 6)) * 3;
+    const R = 17, cy = y - 20 - bob;
 
     shadow(ctx, x, y, 15 - bob * 0.8, 5, 0.2);
 
@@ -323,10 +330,17 @@ window.Ink = (() => {
     ctx.fill();
 
     // yeux
-    const blink = (t + seed * 0.37) % 4.2 < 0.13;
+    const blink = (t + seed * 0.37) % 4.2 < 0.13 || emote === "dodo";
+    const happy = emote === "rire" || emote === "coeur" || emote === "danse";
     for (const s of [-1, 1]) {
       const ex = cx + s * 6 + face * 2.5, ey = cy - 3;
-      if (blink) {
+      if (happy) {
+        ctx.strokeStyle = PAPER;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(ex, ey + 2, 3.5, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+      } else if (blink) {
         ctx.strokeStyle = PAPER;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -345,6 +359,18 @@ window.Ink = (() => {
       }
     }
 
+    if (fangs) {
+      ctx.fillStyle = PAPER;
+      for (const s of [-1, 1]) {
+        const fx = cx + face * 2.5 + s * 3;
+        ctx.beginPath();
+        ctx.moveTo(fx - 1.8, cy + 5);
+        ctx.lineTo(fx + 1.8, cy + 5);
+        ctx.lineTo(fx, cy + 10);
+        ctx.fill();
+      }
+    }
+
     if (rod) {
       const hx = cx + face * 14, hy = cy + 4;
       ctx.strokeStyle = "#6b4426";
@@ -359,6 +385,70 @@ window.Ink = (() => {
       ctx.moveTo(hx + face * 24, hy - 30);
       ctx.lineTo(hx + face * 24, hy - 6 + Math.sin(t * 3) * 2);
       ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ---------- Emotes ----------
+
+  function heart(ctx, x, y, s, color) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.9);
+    ctx.bezierCurveTo(x - s * 1.7, y - s * 0.2, x - s * 0.6, y - s * 1.5, x, y - s * 0.5);
+    ctx.bezierCurveTo(x + s * 0.6, y - s * 1.5, x + s * 1.7, y - s * 0.2, x, y + s * 0.9);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  }
+
+  function word(ctx, text, x, y, size, color, weight = 800) {
+    ctx.font = `${weight} ${size}px "Barlow Semi Condensed", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = PAPER;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+  }
+
+  // et = secondes depuis le début de l'emote (dure 2,5 s)
+  function emote(ctx, x, y, type, et, t) {
+    const a = Math.min(1, et * 6, (2.5 - et) * 3);
+    if (a <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = a;
+    const by = y - 84 - Math.min(1, et * 4) * 6;
+    if (type === "coeur") {
+      heart(ctx, x, by, 10 * (1 + Math.sin(et * 10) * 0.12), "#c0392b");
+    } else if (type === "rire") {
+      word(ctx, "HA HA", x + Math.sin(t * 40) * 2, by, 16, INK);
+    } else if (type === "surprise") {
+      word(ctx, "!", x, by - 4, 34, "#e0662f", 900);
+    } else if (type === "danse") {
+      for (let i = 0; i < 2; i++) {
+        const p = (et * 0.8 + i * 0.5) % 1;
+        word(ctx, "♪", x - 14 + i * 28 + Math.sin(t * 6 + i) * 4, by + 8 - p * 24, 20, INK);
+      }
+    } else if (type === "dodo") {
+      ["z", "Z", "z"].forEach((z, i) => {
+        const p = (et * 0.6 + i / 3) % 1;
+        ctx.globalAlpha = a * (1 - p);
+        word(ctx, z, x + 10 + p * 16 + i * 4, by + 10 - p * 30, 13 + i * 3, INK);
+      });
+    } else if (type === "splash") {
+      ctx.fillStyle = INK;
+      const k = Math.min(1, et * 2.5);
+      for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * TAU + i;
+        const d = 18 + k * (30 + (i % 3) * 12);
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(ang) * d, y - 20 + Math.sin(ang) * d * 0.7, (1 - k) * 4 + 1.5, 0, TAU);
+        ctx.fill();
+      }
     }
     ctx.restore();
   }
@@ -425,6 +515,6 @@ window.Ink = (() => {
 
   return {
     INK, PAPER, rng, hash, jitter, trace, stroke, fill, hatch, ellipse, rect, shadow,
-    grain, splat, crack, grass, stone, ruin, lamp, deadTree, enxor, label, bubble,
+    grain, splat, crack, grass, stone, ruin, lamp, deadTree, enxor, emote, heart, word, label, bubble,
   };
 })();
