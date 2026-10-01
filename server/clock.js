@@ -39,4 +39,13 @@ function dayInfo() {
   };
 }
 
-module.exports = { unlockedDays, dayInfo };
+// Les jeux sont éphémères : seul le jeu du jour compte. On tolère 15 minutes après minuit
+// pour qu'une partie commencée à 23h59 puisse encore être enregistrée.
+function gamePlayable(day) {
+  const n = unlockedDays();
+  if (day === n) return true;
+  const p = parisNow();
+  return day === n - 1 && p.hour === 0 && p.minute < 15;
+}
+
+module.exports = { unlockedDays, dayInfo, gamePlayable };

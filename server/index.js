@@ -220,7 +220,24 @@ setInterval(() => {
 
 const onlineList = () => [...online].map(([id, v]) => [id, Math.round(v.x), Math.round(v.y), v.zone, v.act]);
 
-const lg = createWerewolf(io, (id) => db.players[id]);
+// porte de la cabane de chaque joueur (mêmes positions que public/js/village.js)
+const DOORS = [];
+for (const [radius, count] of [[430, 10], [780, 18]]) {
+  for (let i = 0; i < count; i++) {
+    const a = ((-55 + ((i + 0.5) * 290) / count) * Math.PI) / 180;
+    DOORS.push({ x: Math.round(1500 + Math.cos(a) * radius * 1.35), y: Math.round(1300 + Math.sin(a) * radius) + 24 });
+  }
+}
+const lg = createWerewolf(io, {
+  getPlayer: (id) => db.players[id],
+  getPos: (id) => online.get(id) || null,
+  doorOf: (id) => {
+    const pl = db.players[id];
+    if (!pl) return null;
+    if (pl.owner) return { x: 1500, y: 496 };
+    return pl.plot != null ? DOORS[pl.plot] : null;
+  },
+});
 
 db.wall ||= [];
 db.fishing ||= { records: {}, log: [] };
@@ -250,7 +267,9 @@ io.on("connection", (socket) => {
 
   // loup-garou
   for (const name of ["join", "leave", "start"]) socket.on("lg:" + name, () => lg.actions[name](p.id));
-  for (const name of ["wolf", "seer", "vote", "shoot"]) socket.on("lg:" + name, (target) => lg.actions[name](p.id, target ?? null));
+  for (const name of ["attack", "seer", "protect", "raven", "vote", "shoot"]) socket.on("lg:" + name, (target) => lg.actions[name](p.id, target ?? null));
+  socket.on("lg:cupid", (pair) => lg.actions.cupid(p.id, pair));
+  socket.on("lg:options", (opts) => lg.actions.options(p.id, opts));
   socket.on("lg:witch", (choice) => lg.actions.witch(p.id, choice || {}));
 
   socket.on("act", (act) => {
@@ -300,7 +319,8 @@ io.on("connection", (socket) => {
   socket.on("move", (pos) => {
     const x = Number(pos?.x), y = Number(pos?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    if (validZone(pos.zone, p)) o.zone = pos.zone;
+    // pendant une partie de loup-garou, les joueurs restent dans le village (pas de cachette dans les cabanes)
+    if (validZone(pos.zone, p) && (pos.zone === "village" || !lg.blocksCabins(p.id))) o.zone = pos.zone;
     if (o.act && (Math.abs(x - o.x) > 3 || Math.abs(y - o.y) > 3)) o.act = null; // bouger arrête de pêcher / de s'asseoir
     const max = o.zone === "village" ? WORLD : INTERIOR;
     o.x = Math.max(0, Math.min(max.w, x));
@@ -319,7 +339,7 @@ io.on("connection", (socket) => {
 
   socket.on("game:done", (r) => {
     const day = Number(r?.day);
-    if (!Number.isInteger(day) || day < 1 || day > clock.unlockedDays()) return;
+    if (!Number.isInteger(day) || !clock.gamePlayable(day)) return;
     const score = Math.max(0, Math.min(1e6, Math.round(Number(r.score) || 0)));
     const stars = Math.max(0, Math.min(3, Math.round(Number(r.stars) || 0)));
     p.games ||= {};

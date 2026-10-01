@@ -118,6 +118,9 @@
     socket.on("lg:you", (y) => Werewolf.onYou(y));
     socket.on("lg:gather", (ids) => Werewolf.onGather(ids));
     socket.on("lg:msg", (text) => toast(text));
+    socket.on("lg:home", (ids) => Werewolf.onHome(ids));
+    socket.on("lg:hear", () => Werewolf.onHear());
+    socket.on("lg:love", () => Werewolf.onLove());
     socket.on("wall", (w) => {
       S.wall = w;
       if (S.panel?.type === "board") renderPanel();
@@ -397,7 +400,8 @@
     if (!m) return;
     const inside = inCabin();
     let dx = 0, dy = 0;
-    if (!S.panel && !chatOpen()) {
+    if (Werewolf.frozen()) S.target = S.pending = null; // on dort dans sa cabane
+    else if (!S.panel && !chatOpen()) {
       if (S.keys.has("l")) dx--;
       if (S.keys.has("r")) dx++;
       if (!inside && S.keys.has("u")) dy--;
@@ -470,6 +474,10 @@
     }
     if (S.near?.kind === "pond") S.near.label = !S.fish ? "Pêcher" : S.fish.state === "bite" ? "FERRER !" : "Ranger la canne";
     if (S.near?.kind === "seat" && S.act === "sit") S.near.label = "Se lever";
+    if (Werewolf.blocksCabins() && (S.near?.kind === "cabin" || (S.near?.kind === "house" && S.me.owner))) S.near = null;
+    const lgAction = !inside && Werewolf.nearAction(m);
+    if (lgAction) S.near = lgAction;
+    else if (Werewolf.frozen()) S.near = null;
     if (S.pending && sameInter(S.pending, S.near)) interact(S.near);
     const prompt = $("prompt");
     prompt.hidden = !S.near || !!S.panel;
@@ -494,7 +502,7 @@
 
     if (!inside) {
       for (const e of S.ents.values()) {
-        if (e.zone === "village" && e.moving && t - e.stepT > 0.2) {
+        if (e.zone === "village" && e.moving && t - e.stepT > 0.2 && Werewolf.view(e).show) {
           e.stepT = t;
           S.footprints.push({ x: e.x + (Math.random() - 0.5) * 8, y: e.y + 2, t, s: 2 + Math.random() * 2 });
         }
@@ -761,8 +769,10 @@
     }
     ctx.globalAlpha = 1;
 
+    Werewolf.drawGround(ctx, t);
+
     const vis = (x, y) => x > cam.x - 260 && x < cam.x + vw + 260 && y > cam.y - 60 && y < cam.y + vh + 480;
-    const here = [...S.ents.values()].filter((e) => e.zone === "village" && vis(e.x, e.y));
+    const here = [...S.ents.values()].filter((e) => e.zone === "village" && vis(e.x, e.y) && Werewolf.view(e).show);
     if (vis(V.POND.x, V.POND.y)) V.drawPond(ctx, t, S.sky.dark);
     if (vis(V.STONES[3].x, V.STONES[3].y)) V.drawStones(ctx, t, S.stoneGlow);
     const items = [];
@@ -771,6 +781,7 @@
     if (vis(V.BOARD.x, V.BOARD.y)) items.push({ y: V.BOARD.y, draw: () => V.drawBoard(ctx, t, S.wall.length) });
     for (const c of S.crows) if (vis(c.x, c.y)) items.push({ y: c.y, draw: () => V.drawCrow(ctx, c, t) });
     items.push(...Werewolf.items(ctx, t, vis));
+    items.push({ y: 99999, draw: () => Werewolf.drawRaven(ctx, t) });
     for (const p of S.players.values()) {
       if (p.plot == null) continue;
       const pl = V.plots[p.plot];
@@ -788,7 +799,7 @@
 
     // nuit : tout s'assombrit sauf autour des lumières
     V.drawNight(ctx, cam, vw, vh, dpr, S.sky, villageLights(cam));
-    Werewolf.overlay(ctx, vw, vh, dpr, t);
+    Werewolf.overlay(ctx, vw, vh, dpr, t, { x: me().x - cam.x, y: me().y - 20 - cam.y });
     ctx.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
 
     ctx.save();
@@ -822,7 +833,10 @@
       const pl = V.plots[p.plot];
       if (vis(pl.x, pl.y)) Ink.label(ctx, p.pseudo, pl.x, pl.y - 150, { size: 13, dot: p.cabin.color });
     }
-    for (const e of here) drawOverheads(e, t);
+    for (const e of here) {
+      if (Werewolf.view(e).name) drawOverheads(e, t);
+      else if (e.chat && performance.now() < e.chatUntil) Ink.bubble(ctx, e.chat, e.x, e.y - 68);
+    }
   }
 
   function renderInterior(t) {
@@ -921,6 +935,10 @@
     S.target = null;
     S.pending = null;
     S.keys.clear();
+    if (it.kind === "lg-door") return Werewolf.doAction(it);
+    if ((it.kind === "cabin" || it.kind === "house") && Werewolf.blocksCabins()) {
+      if (it.kind === "cabin" || S.me.owner) return toast("Pas pendant une partie de loup-garou : on reste dans le village !");
+    }
     if (it.kind === "pond") return fishAction();
     if (it.kind === "seat") return toggleSeat(it.seat);
     if (it.kind !== "frame") Sound.play("click");
@@ -1085,8 +1103,10 @@
       games.push(el("div", { class: "game-row" + (d === n ? " today" : "") },
         el("div", {},
           el("strong", { text: `Jour ${d} · ${g.title}` }),
-          el("span", { class: "muted", text: res ? `Ton record : ${res.best} · ${"★".repeat(res.stars)}${"☆".repeat(3 - res.stars)}` : d === n ? "Le vestige du jour" : "Pas encore joué" })),
-        el("button", { class: "btn", text: "Jouer", onclick: () => openGame(d) })));
+          el("span", { class: "muted", text: res ? `Ton record : ${res.best} · ${"★".repeat(res.stars)}${"☆".repeat(3 - res.stars)}` : d === n ? "Le vestige du jour, jouable jusqu'à minuit" : "Tu ne l'as pas joué" })),
+        d === n
+          ? el("button", { class: "btn", text: "Jouer", onclick: () => openGame(d) })
+          : el("span", { class: "faded", text: "Effacé par l'encre" })));
     }
     body.append(
       el("p", { class: "eyebrow", text: "La Source" }),
@@ -1118,7 +1138,7 @@
 
   function openGame(day) {
     const game = Games.get(day);
-    if (!game || day > unlocked()) return;
+    if (!game || day !== unlocked()) return; // jeux éphémères : seulement le jeu du jour
     closePanel();
     stopActivity();
     S.keys.clear();
@@ -1199,7 +1219,9 @@
       ranking.length > 0 && el("ol", { class: "ranking" }, ranking.map((p) =>
         el("li", { class: p.id === S.me.id ? "me" : "" }, el("span", { text: p.pseudo }), el("b", { text: p.games[day].best })))),
       el("div", { class: "actions" },
-        el("button", { class: "btn", text: "Rejouer", onclick: startGame }),
+        day === unlocked()
+          ? el("button", { class: "btn", text: "Rejouer", onclick: startGame })
+          : el("p", { class: "muted", text: "Minuit est passé : ce vestige s'est effacé." }),
         el("button", { class: "btn ghost", text: "Retour au village", onclick: closeGame })),
     ));
   }
@@ -1268,6 +1290,9 @@
     walkTo(x, y) {
       S.pending = null;
       S.target = { x, y };
+    },
+    forceVillage() {
+      if (inCabin()) exitCabin();
     },
   });
 

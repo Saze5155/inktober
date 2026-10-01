@@ -222,6 +222,7 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 }
 .game-row > div { display: grid; gap: 2px; }
 .game-row.today { border-color: var(--gold); }
+.game-row .faded { color: var(--muted); font-style: italic; font-size: 14px; white-space: nowrap; }
 
 .records { width: 100%; border-collapse: collapse; margin-top: 12px; }
 .records th { text-align: left; color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
@@ -277,6 +278,13 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .lobby li { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; display: flex; gap: 6px; align-items: center; }
 .lobby em { font-size: 12px; color: var(--gold); font-style: normal; }
 .lg-status { color: var(--gold); font-weight: 700; }
+.lg-love { color: #f08fb5; font-weight: 700; }
+.lg-alert { color: #e4574b; font-weight: 700; }
+.role-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.role-chip { font: inherit; font-size: 14px; color: var(--muted); background: #151414; border: 1px dashed var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.role-chip.on { color: var(--text); border: 1px solid var(--gold); }
+.role-chip.fixed { cursor: default; border-color: #5a4f48; }
+.role-chip[disabled] { cursor: default; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 
 /* ---------- Jeux ---------- */
