@@ -56,6 +56,8 @@ server/werewolf.js le loup-garou (rôles, phases, votes)
 public/js/audio.js musique et sons générés (Web Audio)
 public/js/world.js     le monde ouvert : le Seuil, Rive-Basse, Cendre-Gravée (sol en tuiles, bâtiments, PNJ, carte)
 server/npcs.js         les habitants du monde et leurs dialogues
+server/quests.js       les quêtes (étapes, objets à trouver, récompenses)
+server/lore.js         le Bestiaire de Mythras (14 pages) et les apparitions légendaires
 server/trophies.js     trophées et décorations
 public/js/interior.js  l'intérieur des cabanes et les 31 décors
 public/js/werewolf.js  le loup-garou côté navigateur (estrade, carte de rôle, vote)

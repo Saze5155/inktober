@@ -68,7 +68,7 @@ module.exports = [
   // ---------- Cendre-Gravée ----------
   {
     id: "ocre", region: "cendre", x: 4100, y: 3610, name: "Ocre", title: "Puisatière de Cendre-Gravée",
-    color: "#c98a5c", wear: {},
+    color: "#c98a5c", wear: { head: "girouette" },
     lines: [
       "Tiens, un nouveau visage ! Bienvenue à Cendre-Gravée. Personne ne passe jamais par ici.",
       "C'est le puits qui nous fait vivre. L'eau reste fraîche, même quand le sable noir brûle.",
@@ -92,6 +92,37 @@ module.exports = [
       "(Il ne dit rien. Du sable noir s'écoule en continu de ses manches, comme d'un sablier.)",
       "(Il trace lentement dans le sable : « Vous êtes déjà venus. Hier. Et le jour d'avant. Et le jour d'avant encore. »)",
       "(Puis le vent efface tout. Le vent qui, d'après Ocre, ne souffle jamais ici.)",
+    ],
+  },
+  // ---------- La Grotte de Mythras ----------
+  {
+    id: "archiviste", region: "grotte", x: 5800, y: 830, name: "Encrine", title: "Archiviste d'Umbralis",
+    color: "#7d5ba6", wear: { head: "plume" },
+    lines: [
+      "Doucement… Ici, chaque ombre garde un souvenir. Je suis Encrine, je sers Umbralis, le Tisseur d'Ombres.",
+      "Ces étagères, c'est une bibliothèque humaine entière. L'Encre l'a absorbée pendant les mille ans de nuit, sans même s'en rendre compte. Des mythes, des légendes, des créatures…",
+      "Quelqu'un est venu lire ici, il y a très longtemps. Il a lu, encore et encore. Puis il a dessiné sur les murs, au fond de la grotte. Et les dessins se sont mis à respirer.",
+      "Quatorze créatures sont nées ainsi. Le Bestiaire qui les décrivait a été déchiré : ses pages se sont envolées aux quatre coins du monde. Si tu en trouves, lis-les. Appuie sur B pour feuilleter ce que tu as trouvé.",
+    ],
+  },
+  {
+    id: "voix", region: "grotte", x: 5720, y: 1980, name: "La Voix", title: "…dans l'ombre",
+    color: "#1d1a20", wear: { head: "capuche" }, ghost: true,
+    lines: [
+      "…",
+      "Mythras ? …Non. Ce n'est pas toi.",
+      "Ils ont tous voté. Verdanya, Prismaelyx, Umbralis, Abyssara… même Mère. Moi seul me suis levé.",
+      "Si tu le croises, petite tache d'encre… dis-lui que je le cherche encore. Dis-lui que je le protégerai.",
+    ],
+  },
+  // ---------- La Jungle de Verdanya ----------
+  {
+    id: "liane", region: "jungle", x: 5800, y: 3640, name: "Liane", title: "Chasseuse de Verdanya",
+    color: "#5b8c5a", wear: { head: "oreilles" },
+    lines: [
+      "Chut. Tu fais fuir le gibier. …Ah, non. Il n'y a plus de gibier. Ça veut dire que Fenryx rôde encore.",
+      "Ici, tout pousse sans soleil. Les arbres ont appris à vivre dans le noir pendant mille ans, et ils sont devenus plus forts que tout ce qui existait avant.",
+      "Verdanya ne juge personne. Elle donne, et elle reprend, avec la même indifférence. Moi, j'ai fusionné avec un Anixor pour mieux la servir.",
     ],
   },
 ];

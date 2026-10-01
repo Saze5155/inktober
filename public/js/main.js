@@ -6,7 +6,7 @@
   const ctx = canvas.getContext("2d");
   const AUTH_KEY = "enxor.auth";
   const SPEED = 230;
-  const KEYMAP = { arrowup: "u", z: "u", w: "u", arrowdown: "d", s: "d", arrowleft: "l", q: "l", a: "l", arrowright: "r", d: "r" };
+  const KEYMAP = { arrowup: "u", z: "u", w: "u", arrowdown: "d", s: "d", arrowleft: "l", q: "l", a: "l", arrowright: "r", d: "r", shift: "run" };
   const EMOTES = [["coeur", "♥", "Cœur"], ["rire", "HA", "Rire"], ["surprise", "!", "Surprise"], ["danse", "♪", "Danse"], ["dodo", "Zz", "Dodo"], ["splash", "✸", "Splash d'encre"]];
   const INSIDE_SCALE = 1.35;
 
@@ -20,7 +20,7 @@
     pops: [], sparks: [], fireflies: [], sky: { dark: 0, dusk: 0 }, skyAt: -1, lastBurst: 0,
     act: null, fish: null, wall: [], fishing: { records: {}, log: [] }, stoneGlow: [], lastStone: -1, crows: [], stepT: 0,
     catalog: { cosmetics: {}, slots: [], trophies: [] }, fx: [], dayTarget: null, lastDayAct: 0,
-    region: null,
+    region: null, questDefs: [], pages: [], seenLegends: new Set(), legendsNow: [],
   };
 
   // action spéciale du jour sur un autre Enxor (touche F), seulement le jour du vestige
@@ -217,6 +217,9 @@
     S.wall = data.wall || [];
     if (data.catalog) S.catalog = data.catalog;
     World.setNpcs(data.npcs);
+    S.questDefs = data.quests || [];
+    S.pages = data.pages || [];
+    S.seenLegends = new Set(data.me.stats?.legends || []);
     Werewolf.onState(data.lg);
     Werewolf.onYou(data.lgYou);
     S.fishing = data.fishing || S.fishing;
@@ -312,7 +315,7 @@
   function updateHelp() {
     $("hud-help").innerHTML = inCabin()
       ? "Q / D ou flèches · clic pour marcher · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes"
-      : "ZQSD / flèches ou clic pour bouger · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes · <b>M</b> carte";
+      : "ZQSD / clic pour bouger · <b>Maj</b> courir · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes · <b>M</b> carte · <b>J</b> quêtes · <b>B</b> bestiaire";
   }
 
   function rebuildWorld() {
@@ -447,7 +450,8 @@
     m.moving = len > 0;
     if (len) {
       const left = S.target ? Math.hypot(S.target.x - m.x, inside ? 0 : S.target.y - m.y) : Infinity;
-      const step = Math.min(SPEED * dt, left);
+      const speed = !inside && S.keys.has("run") ? SPEED * 1.7 : SPEED;
+      const step = Math.min(speed * dt, left);
       const nx = m.x + (dx / len) * step, ny = m.y + (dy / len) * step;
       let moved = false;
       if (!blocked(nx, m.y)) { m.x = nx; moved = true; }
@@ -502,6 +506,26 @@
     }
     if (S.near?.kind === "pond" || S.near?.kind === "spot") S.near.label = !S.fish ? "Pêcher" : S.fish.state === "bite" ? "FERRER !" : "Ranger la canne";
     if (S.near?.kind === "seat" && S.act === "sit") S.near.label = "Se lever";
+    // objets de quête et pages du Bestiaire à proximité
+    if (!inside) {
+      for (const qi of activeQuestItems()) {
+        if (Math.hypot(qi.item.x - m.x, qi.item.y - m.y) < 55) {
+          S.near = { kind: "qitem", id: qi.item.id, quest: qi.quest.id, x: qi.item.x, y: qi.item.y, r: 55, label: qi.step.verb + (qi.item.name ? ` : ${qi.item.name}` : "") };
+        }
+      }
+      for (const pg of pagesLeft()) {
+        if (Math.hypot(pg.x - m.x, pg.y - m.y) < 55) S.near = { kind: "page", id: pg.id, x: pg.x, y: pg.y, r: 55, label: "Ramasser la page du Bestiaire" };
+      }
+      // apparitions légendaires
+      S.legendsNow = World.legends(t, S.sky, m);
+      for (const L of S.legendsNow) {
+        if (L.visible === false || S.seenLegends.has(L.id) || Math.hypot(L.x - m.x, L.y - m.y) > L.r) continue;
+        S.seenLegends.add(L.id);
+        S.socket.emit("legend:seen", L.id);
+        Sound.play("reveal");
+        toast(`✨ Tu as aperçu ${L.name} ! (B pour le Bestiaire)`, 5000);
+      }
+    } else S.legendsNow = [];
     if (Werewolf.blocksCabins() && (S.near?.kind === "cabin" || (S.near?.kind === "house" && S.me.owner))) S.near = null;
     const lgAction = !inside && Werewolf.nearAction(m);
     if (lgAction) S.near = lgAction;
@@ -893,8 +917,15 @@
     items.push(...Werewolf.items(ctx, t, vis));
     items.push({ y: 99999, draw: () => Werewolf.drawRaven(ctx, t) });
     const talked = new Set(S.players.get(S.me.id)?.stats?.npcs || []);
-    const worldItems = World.items(ctx, t, vis, talked);
+    const worldItems = World.items(ctx, t, vis, talked, me());
     items.push(...worldItems);
+    for (const qi of activeQuestItems()) if (vis(qi.item.x, qi.item.y)) items.push({ y: qi.item.y, draw: () => drawQuestItem(qi, t) });
+    for (const pg of pagesLeft()) if (vis(pg.x, pg.y)) items.push({ y: pg.y, draw: () => drawPage(pg, t) });
+    const air = [];
+    for (const L of S.legendsNow) {
+      if (!vis(L.x, L.y - 300)) continue;
+      if (L.air) air.push(L); else items.push({ y: L.y, draw: () => L.draw(ctx) });
+    }
     for (const p of S.players.values()) {
       if (p.plot == null) continue;
       const pl = V.plots[p.plot];
@@ -909,8 +940,9 @@
     }
     for (const e of here) items.push({ y: e.y, draw: () => drawEnt(e, t) });
     items.sort((a, b) => a.y - b.y).forEach((i) => i.draw());
+    for (const L of air) L.draw(ctx);
     drawFx(t);
-    World.overlay(ctx, cam, vw, vh, t);
+    World.overlay(ctx, cam, vw, vh, t, me());
 
     // nuit : tout s'assombrit sauf autour des lumières
     V.drawNight(ctx, cam, vw, vh, dpr, S.sky, villageLights(cam));
@@ -1010,6 +1042,10 @@
       openPanel({ type: "trophies" });
     } else if (e.key.toLowerCase() === "m") {
       openPanel({ type: "map" });
+    } else if (e.key.toLowerCase() === "j") {
+      openPanel({ type: "quests" });
+    } else if (e.key.toLowerCase() === "b") {
+      openPanel({ type: "bestiary" });
     }
   });
   window.addEventListener("keyup", (e) => {
@@ -1064,10 +1100,21 @@
       if (it.kind === "cabin" || S.me.owner) return toast("Pas pendant une partie de loup-garou : on reste dans le village !");
     }
     if (it.kind === "pond" || it.kind === "spot") return fishAction();
-    if (it.kind === "npc") {
-      S.socket.emit("npc:talk", it.id);
-      Sound.play("chat");
-      return openPanel({ type: "npc", id: it.id, line: 0 });
+    if (it.kind === "npc") return openNpc(it.id);
+    if (it.kind === "qitem") {
+      S.socket.emit("quest:collect", { quest: it.quest, item: it.id }, (res) => {
+        if (!res?.ok) return toast("Rien ici…");
+        Sound.play("drop");
+        toast(res.line || (res.name ? `Tu as trouvé ${res.name}.` : "C'est fait !"), 4000);
+      });
+      return;
+    }
+    if (it.kind === "page") {
+      S.socket.emit("page:take", it.id);
+      const pg = S.pages.find((p) => p.id === it.id);
+      Sound.play("reveal");
+      toast(`📜 Page du Bestiaire : ${pg?.name}. Appuie sur B pour la lire.`, 5000);
+      return;
     }
     if (it.kind === "seat") return toggleSeat(it.seat);
     if (it.kind !== "frame") Sound.play("click");
@@ -1105,6 +1152,8 @@
     else if (type === "stage") Werewolf.renderPanel(body);
     else if (type === "trophies") renderTrophies(body);
     else if (type === "npc") renderNpc(body);
+    else if (type === "quests") renderQuests(body);
+    else if (type === "bestiary") renderBestiary(body);
     else if (type === "map") renderMap(body);
     else if (type === "board") renderBoard(body);
   }
@@ -1159,10 +1208,146 @@
 
   // ---------- Habitants et carte ----------
 
+  // ---------- Quêtes et Bestiaire ----------
+
+  const myPlayer = () => S.players.get(S.me.id) || S.me;
+  const myQuests = () => myPlayer().quests || {};
+  const myStats = () => myPlayer().stats || {};
+
+  function activeQuestItems() {
+    const out = [], st = myQuests();
+    for (const q of S.questDefs) {
+      const s = st[q.id];
+      const step = s && !s.done && q.steps[s.step];
+      if (step?.type !== "collect") continue;
+      for (const item of step.items) if (!s.got.includes(item.id)) out.push({ quest: q, step, item });
+    }
+    return out;
+  }
+  const pagesLeft = () => { const got = new Set(myStats().pages || []); return S.pages.filter((p) => !got.has(p.id)); };
+
+  function drawQuestItem({ step, item }, t) {
+    const { x, y } = item;
+    const bob = Math.sin(t * 3 + x) * 3;
+    ctx.save();
+    const glow = ctx.createRadialGradient(x, y - 14, 0, x, y - 14, 46);
+    glow.addColorStop(0, "rgba(233,176,74,.45)");
+    glow.addColorStop(1, "rgba(233,176,74,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - 46, y - 60, 92, 92);
+    if (step.look === "ember") {
+      for (const [c, w, h] of [["#e0662f", 10, 26], ["#e9b04a", 6, 16]]) {
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.moveTo(x - w, y); ctx.quadraticCurveTo(x - w, y - h * 0.7, x + Math.sin(t * 9) * 2, y - h + bob); ctx.quadraticCurveTo(x + w, y - h * 0.6, x + w, y); ctx.fill();
+      }
+    } else if (step.look === "whisper") {
+      ctx.strokeStyle = "rgba(110,170,255,.8)";
+      ctx.lineWidth = 2;
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(x, y - 20, 8 + k * 7 + Math.sin(t * 2 + k) * 2, t + k, t + k + 4); ctx.stroke(); }
+      Ink.word(ctx, "…", x, y - 46 + bob, 18, "#6e9ade", 800);
+    } else if (step.look === "stain") {
+      Ink.splat(ctx, x, y - 4, 16, Ink.rng(Ink.hash(item.id)), Ink.INK, 0.9);
+    } else if (step.look === "mark") {
+      ctx.fillStyle = "#6b4426"; ctx.fillRect(x - 6, y - 40, 12, 40);
+      ctx.strokeStyle = Ink.PAPER; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x - 5, y - 34); ctx.lineTo(x + 5, y - 22); ctx.moveTo(x + 5, y - 34); ctx.lineTo(x - 5, y - 22); ctx.stroke();
+    } else if (step.look === "totem") {
+      ctx.strokeStyle = `rgba(124,209,90,${0.5 + Math.sin(t * 3) * 0.3})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(x, y, 34, 12, 0, 0, Math.PI * 2); ctx.stroke();
+    } else {
+      // objet humain qui brille
+      ctx.fillStyle = "#cfc3ad"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(x, y - 6, 9, 6, 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#fff";
+      const s = 5 + Math.sin(t * 6 + x) * 3;
+      ctx.beginPath(); ctx.moveTo(x + 8, y - 20 - s); ctx.lineTo(x + 10, y - 20); ctx.lineTo(x + 8, y - 20 + s); ctx.lineTo(x + 6, y - 20); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawPage(pg, t) {
+    const { x, y } = pg;
+    const bob = Math.sin(t * 2 + x) * 4;
+    ctx.save();
+    const glow = ctx.createRadialGradient(x, y - 24, 0, x, y - 24, 54);
+    glow.addColorStop(0, "rgba(246,239,213,.5)");
+    glow.addColorStop(1, "rgba(246,239,213,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - 54, y - 78, 108, 108);
+    Ink.shadow(ctx, x, y + 2, 12, 4, 0.25);
+    ctx.translate(x, y - 26 + bob);
+    ctx.rotate(Math.sin(t * 1.5 + x) * 0.15);
+    ctx.fillStyle = "#f2ead8"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 1.6;
+    ctx.fillRect(-11, -14, 22, 28); ctx.strokeRect(-11, -14, 22, 28);
+    ctx.lineWidth = 1;
+    for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-7, -8 + k * 6); ctx.lineTo(7, -8 + k * 6); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function openNpc(id) {
+    const n = World.npcs.find((x) => x.id === id);
+    if (!n) return;
+    const st = myQuests();
+    const given = S.questDefs.find((q) => q.giver === id);
+    const finishing = S.questDefs.filter((q) => {
+      const s = st[q.id];
+      const step = s && !s.done && q.steps[s.step];
+      return step?.type === "return" && step.npc === id;
+    });
+    let lines = [...n.lines], offer = null, done = null;
+    if (finishing.length) { lines = finishing.flatMap((q) => q.done); done = finishing.map((q) => q.name); }
+    else if (given && !st[given.id]) { lines.push(given.offer); offer = given.id; }
+    else if (given && !st[given.id].done) lines = [n.lines[0], given.remind];
+    S.socket.emit("npc:talk", id);
+    Sound.play("chat");
+    openPanel({ type: "npc", id, lines, line: 0, offer, done });
+  }
+
+  function renderQuests(body) {
+    const st = myQuests();
+    body.append(el("p", { class: "eyebrow", text: "Journal" }), el("h2", { class: "script", text: "Les quêtes" }));
+    const list = el("div", { class: "quest-list" });
+    for (const q of S.questDefs) {
+      const s = st[q.id];
+      const giver = World.npcs.find((n) => n.id === q.giver);
+      const reg = World.REGIONS.find((r) => r.id === giver?.region);
+      let status, cls = "";
+      if (!s) { status = `Parle à ${giver?.name} (${reg?.name}) pour la commencer.`; cls = "todo"; }
+      else if (s.done) { status = "Terminée !"; cls = "done"; }
+      else {
+        const step = q.steps[s.step];
+        const prog = step.type === "collect" ? ` (${s.got.length}/${step.items.length})` : step.type === "fish" ? ` (${s.count}/${step.count})` : "";
+        status = step.text + prog;
+        cls = "active";
+      }
+      list.append(el("div", { class: "quest " + cls }, el("strong", { text: (s?.done ? "✓ " : "") + q.name }), el("span", { text: status })));
+    }
+    body.append(list);
+  }
+
+  function renderBestiary(body) {
+    const got = new Set(myStats().pages || []);
+    const seen = S.seenLegends;
+    body.append(
+      el("p", { class: "eyebrow", text: `${got.size} / ${S.pages.length} pages retrouvées · ${seen.size} apparitions` }),
+      el("h2", { class: "script", text: "Le Bestiaire de Mythras" }),
+      el("p", { class: "muted", text: "Les quatorze Enfants de Mythras. Le livre a été déchiré : ses pages sont éparpillées dans tout le monde, elles brillent faiblement. Certaines créatures se montrent aussi, si on est au bon endroit au bon moment…" }),
+      el("div", { class: "bestiary" }, S.pages.map((pg) => {
+        const has = got.has(pg.id);
+        return el("details", { class: "beast" + (has ? " has" : "") },
+          el("summary", {}, el("strong", { text: has ? pg.name : "???" }), el("em", { text: pg.kind }), seen.has(pg.id) && el("span", { class: "seen", text: "✨ aperçu" })),
+          has ? el("p", { text: pg.short }) : el("p", { class: "muted", text: "Page introuvable pour l'instant." }),
+          has && el("p", { class: "long", text: pg.long }));
+      })),
+    );
+  }
+
   function renderNpc(body) {
     const n = World.npcs.find((x) => x.id === S.panel.id);
     if (!n) return closePanel();
     const i = S.panel.line;
+    const lines = S.panel.lines || n.lines;
     const portrait = el("canvas", { class: "npc-portrait", width: "160", height: "160" });
     const pg = portrait.getContext("2d");
     pg.scale(2, 2);
@@ -1171,19 +1356,30 @@
     pg.translate(40, 66);
     if (n.small) pg.scale(0.8, 0.8);
     Ink.enxor(pg, 0, 0, performance.now() / 1000, { seed: n.x % 97, color: n.color, wear: n.wear, face: 1 });
-    const last = i >= n.lines.length - 1;
+    const last = i >= lines.length - 1;
+    const offer = S.panel.offer && S.questDefs.find((q) => q.id === S.panel.offer);
+    let actions;
+    if (!last) actions = [el("button", { class: "btn", text: "Suite", onclick: () => { S.panel.line++; Sound.play("click"); renderPanel(); } })];
+    else if (offer) {
+      actions = [
+        el("button", { class: "btn", text: "Accepter la quête", onclick: () => {
+          S.socket.emit("quest:accept", offer.id);
+          Sound.play("win");
+          toast(`📜 Nouvelle quête : « ${offer.name} ». Appuie sur J pour le journal.`, 5000);
+          closePanel();
+        } }),
+        el("button", { class: "btn ghost", text: "Plus tard", onclick: closePanel }),
+      ];
+    } else actions = [el("button", { class: "btn", text: "Au revoir", onclick: closePanel })];
     body.append(
       el("div", { class: "npc" },
         portrait,
         el("div", {},
           el("p", { class: "eyebrow", text: n.title }),
           el("h2", { class: "script", text: n.name }),
-          el("p", { class: "npc-line", text: n.lines[i] }),
-          el("div", { class: "actions" },
-            last
-              ? el("button", { class: "btn", text: "Au revoir", onclick: closePanel })
-              : el("button", { class: "btn", text: "Suite", onclick: () => { S.panel.line++; Sound.play("click"); renderPanel(); } }),
-            el("span", { class: "muted", text: `${i + 1} / ${n.lines.length}` })))),
+          S.panel.done && i === 0 && el("p", { class: "quest-done", text: `✓ Quête terminée : ${S.panel.done.join(", ")}` }),
+          el("p", { class: "npc-line", text: lines[i] }),
+          el("div", { class: "actions" }, ...actions, el("span", { class: "muted", text: `${i + 1} / ${lines.length}` })))),
     );
   }
 
@@ -1512,6 +1708,19 @@
       if (inCabin()) exitCabin();
     },
   });
+
+  // mini-carte permanente (en haut à gauche)
+  setInterval(() => {
+    const c = $("minimap");
+    if (!S.me || !me() || S.game) return;
+    c.hidden = inCabin();
+    if (c.hidden) return;
+    const g = c.getContext("2d");
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, c.width, c.height);
+    World.drawMap(g, c.width, c.height, S.players, S.me.id, [...S.ents.values()], false);
+  }, 400);
+  $("minimap").addEventListener("click", () => S.me && openPanel({ type: "map" }));
 
   $("trophy-btn").addEventListener("click", (e) => {
     e.currentTarget.blur();

@@ -262,6 +262,23 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .npc-line { font-size: 18px; line-height: 1.45; min-height: 3.2em; }
 .world-map { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
 
+.minimap { position: fixed; top: 84px; left: 16px; width: 220px; height: 158px; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; opacity: .92; }
+.quest-done { color: #8fd18a; font-weight: 700; margin: 0 0 6px; }
+.quest-list { display: grid; gap: 8px; }
+.quest { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; display: grid; gap: 2px; }
+.quest span { color: var(--muted); }
+.quest.active { border-color: var(--gold); }
+.quest.active span { color: var(--text); }
+.quest.done { opacity: .6; }
+.bestiary { display: grid; gap: 8px; margin-top: 12px; }
+.beast { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.beast.has { border-color: #7d5ba6; }
+.beast summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; }
+.beast summary em { color: var(--muted); font-size: 13px; }
+.beast .seen { margin-left: auto; color: var(--gold); font-size: 13px; }
+.beast p { margin: 8px 0 0; line-height: 1.45; }
+.beast .long { color: var(--muted); font-size: 15px; }
+
 /* ---------- Trophées ---------- */
 
 .trophy-btn { font: inherit; font-weight: 700; color: var(--gold); cursor: pointer; }

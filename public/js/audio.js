@@ -133,6 +133,10 @@ window.Sound = (() => {
     rive: { bpm: 70, chords: [[48, 52, 55], [43, 47, 50], [45, 48, 52], [41, 45, 48]], scale: [67, 69, 72, 74, 76, 79, 81], density: 0.5, cutoff: 4200, pad: 0.05, flute: true },
     // Cendre-Gravée : guitare flamenco, mode phrygien, mains frappées
     cendre: { bpm: 112, chords: [[52, 56, 59], [53, 57, 60], [55, 59, 62], [53, 57, 60]], scale: [64, 65, 68, 69, 71, 72, 74, 76], density: 0.75, cutoff: 3800, pad: 0.03, guitar: true, claps: true },
+    // La Grotte : drones graves, notes rares qui résonnent
+    grotte: { bpm: 44, chords: [[38, 45, 50], [36, 43, 48], [41, 48, 53], [38, 45, 52]], scale: [62, 65, 69, 72, 74, 77], density: 0.18, cutoff: 1500, pad: 0.09 },
+    // La Jungle : marimba et percussions
+    jungle: { bpm: 96, chords: [[45, 52, 57], [43, 50, 55], [41, 48, 53], [43, 50, 55]], scale: [57, 60, 62, 64, 67, 69, 72], density: 0.55, cutoff: 3200, pad: 0.04, drums: true },
     dragon: { bpm: 84, chords: [[50, 53, 57], [46, 50, 53], [43, 46, 50], [45, 49, 52]], scale: [62, 64, 65, 67, 69, 70, 73, 74, 77], density: 0.6, cutoff: 3000, pad: 0.07, saw: true },
     game: { bpm: 100, chords: [[48, 52, 55], [45, 48, 52], [53, 57, 60], [55, 59, 62]], scale: [60, 62, 64, 67, 69, 72, 74, 76], density: 0.7, cutoff: 4000, pad: 0.04 },
   };
@@ -161,6 +165,10 @@ window.Sound = (() => {
           if (step % 4 === 0) chord.forEach((c, k) => tone({ freq: midi(c + 12), type: "triangle", t: t + k * 0.018, dur: 0.4, vol: 0.05, filter: 2600, bus: musicFilter }));
           tone({ freq: midi(n), type: "triangle", t, dur: 0.22, vol: 0.07, filter: 3000, bus: musicFilter });
         } else pluck(midi(n + (mood === "inside" ? 12 : 0)), t, 0.06, musicFilter, 1.4);
+      }
+      if (m.drums) {
+        if (step === 0 || step === 3 || step === 5) tone({ freq: 90, glide: 50, t, dur: 0.25, vol: 0.18, bus: musicFilter });
+        if (step % 2 === 1) noise({ t, dur: 0.05, vol: 0.05, freq: 6000, type: "highpass", bus: musicFilter });
       }
       if (m.claps && (step === 2 || step === 6 || (step === 7 && Math.random() < 0.4))) {
         noise({ t, dur: 0.06, vol: 0.12, freq: 1800, type: "bandpass", q: 1.5, bus: musicFilter });

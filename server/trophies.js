@@ -18,6 +18,16 @@ const COSMETICS = {
   beret: { slot: "head", name: "Béret de peintre" },
   taches: { slot: "aura", name: "Taches de peinture" },
   sablier: { slot: "aura", name: "Sable de Silentis" },
+  flamme: { slot: "aura", name: "Flamme de Solumbris" },
+  manteau: { slot: "back", name: "Manteau d'ombre" },
+  bulles: { slot: "aura", name: "Bulles de la mer noire" },
+  lunettes: { slot: "face", name: "Lunettes de plongée" },
+  girouette: { slot: "head", name: "Girouette" },
+  balai: { slot: "back", name: "Balai de la frontière" },
+  etoilemer: { slot: "head", name: "Étoile de mer" },
+  masque: { slot: "face", name: "Masque de chasse" },
+  livre: { slot: "aura", name: "Pages du Bestiaire" },
+  etoiles: { slot: "aura", name: "Poussière d'étoiles" },
 };
 const SLOTS = ["head", "face", "back", "aura"];
 
@@ -37,7 +47,17 @@ const TROPHIES = [
   { id: "danseur", name: "Prismaelyx applaudit", desc: "Danser 20 fois.", goal: 20, stat: "dances", reward: ["paillettes"] },
   { id: "loupalpha", secret: true, name: "Loup alpha", desc: "Gagner une partie de loup-garou en tant que loup.", reward: ["oreilles"] },
   { id: "sage", name: "Sage du conseil", desc: "Gagner une partie de loup-garou avec le village.", reward: ["echarpe"] },
-  { id: "pelerin", name: "Pèlerin des trois terres", desc: "Parler à tous les habitants du Seuil, de Rive-Basse et de Cendre-Gravée.", goal: 9, stat: "npcs", reward: ["capuche"] },
+  { id: "pelerin", name: "Pèlerin d'Enxor", desc: "Parler à tous les habitants du monde (12).", goal: 12, stat: "npcs", reward: ["capuche"] },
+  { id: "bibliothecaire", name: "Bibliothécaire de Mythras", desc: "Retrouver les 14 pages du Bestiaire.", goal: 14, stat: "pages", reward: ["livre"] },
+  { id: "temoin", name: "Témoin des légendes", desc: "Apercevoir 5 Enfants de Mythras dans le monde.", goal: 5, stat: "legends", reward: ["etoiles"] },
+  { id: "q_flamme", name: "La flamme éternelle", desc: "Quête de Clairène, au sanctuaire de Solumbris.", reward: ["flamme"] },
+  { id: "q_murmures", name: "Les murmures", desc: "Quête d'Ombrin, au sanctuaire de Tenebros.", reward: ["manteau"] },
+  { id: "q_peche", name: "La pêche du jour", desc: "Quête de Mère Varech, au marché de Rive-Basse.", reward: ["bulles"] },
+  { id: "q_tresors", name: "Les trésors engloutis", desc: "Quête de Sel, au bout du grand ponton.", reward: ["lunettes"] },
+  { id: "q_vent", name: "Le vent qui ne vient jamais", desc: "Quête d'Ocre, au puits de Cendre-Gravée.", reward: ["girouette"] },
+  { id: "q_balai", name: "Le balai de la frontière", desc: "Quête du Vieux Gris, au pilier du Seuil.", reward: ["balai"] },
+  { id: "q_toctoc", name: "Toc toc toc", desc: "Quête de Petit Bulot, sur les pontons.", reward: ["etoilemer"] },
+  { id: "q_epreuve", name: "L'épreuve de Verdanya", desc: "Quête de Liane, dans la jungle.", reward: ["masque"] },
   { id: "dejavu", secret: true, name: "Déjà-vu", desc: "Remarquer que les journées se répètent à Cendre-Gravée (parler 3 fois à Ocre).", goal: 3, stat: "ocre", reward: ["sablier"] },
 ];
 const byId = Object.fromEntries(TROPHIES.map((t) => [t.id, t]));

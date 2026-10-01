@@ -10,13 +10,15 @@ const fish = require("./fish");
 const createWerewolf = require("./werewolf");
 const createTrophies = require("./trophies");
 const NPCS = require("./npcs");
+const { PAGES, LEGENDS } = require("./lore");
+const createQuests = require("./quests");
 
 const PORT = Number(process.env.PORT) || 3000;
 const TEAM_CODE = (process.env.TEAM_CODE || "dreamteam").trim();
 // Le pseudo qui possède « La Canne À Pêche » (la grande maison) au lieu d'une cabane
 const OWNER = (process.env.OWNER_PSEUDO || "").trim().toLowerCase();
 
-const WORLD = { w: 5200, h: 4600 }; // le monde ouvert (doit correspondre à public/js/world.js)
+const WORLD = { w: 6400, h: 4600 }; // le monde ouvert (doit correspondre à public/js/world.js)
 const VILLAGE = { w: 3000, h: 2400 }; // le hameau, où roule le ballon
 const SPAWN = { x: 1500, y: 1420 };
 const PLOT_COUNT = 28; // doit correspondre aux emplacements de public/js/village.js
@@ -41,10 +43,15 @@ function publicPlayer(p) {
   return {
     id: p.id, pseudo: p.pseudo, owner: p.owner, plot: p.plot, color: p.color, cabin: p.cabin, drawings: p.drawings,
     games: p.games || {}, wear: p.wear || {}, trophies: Object.keys(p.trophies || {}), stats: p.stats || {},
+    quests: p.quests || {},
   };
 }
 
 const trophies = createTrophies({ io, save: () => store.save(), publicPlayer });
+const quests = createQuests({
+  trophies, io, publicPlayer, save: () => store.save(),
+  inRegion: (pos, region) => region === "rive" && pos.x < 3000 && pos.y > 2400,
+});
 
 // Actions du jour : seulement le jour du vestige correspondant (mordre le jour du vampire…)
 const DAY_ACTIONS = { 1: { stat: "bites", fx: "bite" }, 2: { stat: "flames", fx: "flame" }, 3: { stat: "paints", fx: "paint" } };
@@ -284,14 +291,36 @@ io.on("connection", (socket) => {
     lgYou: lg.privateFor(p.id),
     catalog: trophies.catalog(),
     npcs: NPCS,
+    pages: PAGES,
+    quests: quests.QUESTS,
   });
 
-  // parler à un habitant (il faut être à côté de lui)
+  const near = (x, y, d) => o.zone === "village" && Math.hypot(o.x - x, o.y - y) <= d;
+
+  // parler à un habitant (il faut être à côté de lui) : peut terminer une quête
   socket.on("npc:talk", (id) => {
     const npc = NPCS.find((n) => n.id === id);
-    if (!npc || o.zone !== "village" || Math.hypot(o.x - npc.x, o.y - npc.y) > 200) return;
+    if (!npc || !near(npc.x, npc.y, 200)) return;
     trophies.bump(p, "npcs", id);
     if (id === "ocre") trophies.bump(p, "ocre");
+    quests.talked(p, id);
+  });
+
+  socket.on("quest:accept", (id) => quests.accept(p, String(id)));
+  socket.on("quest:collect", (d, ack) => {
+    const item = d && quests.collect(p, String(d.quest), String(d.item), o);
+    if (typeof ack === "function") ack(item ? { ok: true, line: item.line, name: item.name } : { ok: false });
+  });
+
+  // pages du Bestiaire de Mythras
+  socket.on("page:take", (id) => {
+    const page = PAGES.find((pg) => pg.id === id);
+    if (page && near(page.x, page.y, 160)) trophies.bump(p, "pages", id);
+  });
+
+  // apparition légendaire aperçue
+  socket.on("legend:seen", (id) => {
+    if (LEGENDS.includes(id)) trophies.bump(p, "legends", id);
   });
 
   // garde-robe
@@ -337,6 +366,7 @@ io.on("connection", (socket) => {
     db.fishing.log.unshift(c);
     db.fishing.log.length = Math.min(db.fishing.log.length, 25);
     trophies.bump(p, "catches");
+    quests.fished(p, o);
     if (c.name.startsWith("Vieille botte")) trophies.award(p, "botte");
     store.save();
     io.emit("fish", { id: p.id, catch: c, fishing: db.fishing });

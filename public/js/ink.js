@@ -389,6 +389,7 @@ window.Ink = (() => {
       ctx.lineTo(hx + face * 24, hy - 6 + Math.sin(t * 3) * 2);
       ctx.stroke();
     }
+    wearFace(ctx, wear.face, cx, cy, face);
     if (wear.back === "echarpe") wearScarf(ctx, cx, cy, t, face);
     wearHead(ctx, wear.head, cx, cy - R, t, face);
     wearAura(ctx, wear.aura, cx, cy, t, ph);
@@ -398,7 +399,28 @@ window.Ink = (() => {
   // ---------- Décorations (débloquées par les trophées) ----------
 
   function wearBack(ctx, item, cx, cy, t, face) {
-    if (item === "cape") {
+    if (item === "manteau") {
+      ctx.save();
+      ctx.fillStyle = "rgba(20,18,30,.85)";
+      ctx.strokeStyle = "rgba(110,170,255,.5)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 16, cy - 10);
+      for (let k = 0; k <= 6; k++) ctx.lineTo(cx - 24 + k * 8, cy + 28 + Math.sin(t * 4 + k) * 3);
+      ctx.lineTo(cx + 16, cy - 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    } else if (item === "balai") {
+      ctx.save();
+      ctx.strokeStyle = "#6b4426";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx - face * 20, cy + 22); ctx.lineTo(cx + face * 14, cy - 34); ctx.stroke();
+      ctx.fillStyle = "#c9a76a";
+      ctx.beginPath(); ctx.moveTo(cx - face * 20, cy + 22); ctx.lineTo(cx - face * 30, cy + 32); ctx.lineTo(cx - face * 12, cy + 34); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else if (item === "cape") {
       const fl = Math.sin(t * 4) * 2;
       ctx.save();
       ctx.fillStyle = "#7a1426";
@@ -446,6 +468,25 @@ window.Ink = (() => {
       }
       ctx.restore();
     }
+  }
+
+  function wearFace(ctx, item, cx, cy, face) {
+    if (item !== "lunettes" && item !== "masque") return;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.8;
+    if (item === "lunettes") {
+      ctx.fillStyle = "rgba(110,190,230,.55)";
+      ctx.beginPath(); ctx.roundRect(cx - 13 + face * 2.5, cy - 9, 26, 12, 4); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - 13 + face * 2.5, cy - 4); ctx.lineTo(cx - 18, cy - 6); ctx.moveTo(cx + 13 + face * 2.5, cy - 4); ctx.lineTo(cx + 18, cy - 6); ctx.stroke();
+    } else {
+      // masque de chasse : bande verte avec rayures
+      ctx.fillStyle = "#3f6b3a";
+      ctx.beginPath(); ctx.ellipse(cx + face * 2.5, cy - 3, 15, 6, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#7cd15a";
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(cx + s * 6 + face * 4, cy - 3, 1.8, 0, TAU); ctx.fill(); }
+    }
+    ctx.restore();
   }
 
   function wearScarf(ctx, cx, cy, t, face) {
@@ -525,6 +566,23 @@ window.Ink = (() => {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+    } else if (item === "girouette") {
+      ctx.strokeStyle = INK;
+      ctx.beginPath(); ctx.moveTo(cx, top + 2); ctx.lineTo(cx, top - 22); ctx.stroke();
+      ctx.save();
+      ctx.translate(cx, top - 22);
+      ctx.rotate(Math.sin(t * 0.8) * 1.2);
+      ctx.fillStyle = "#e9b04a";
+      ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(10, -3); ctx.lineTo(14, 0); ctx.lineTo(10, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    } else if (item === "etoilemer") {
+      ctx.fillStyle = "#e0662f";
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? 4 : 11;
+        ctx.lineTo(cx + 6 + Math.cos(a) * rr, top - 2 + Math.sin(a) * rr);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
     } else if (item === "beret") {
       ctx.fillStyle = "#b3261e";
       ctx.beginPath();
@@ -568,6 +626,25 @@ window.Ink = (() => {
       if (item === "braises") {
         ctx.fillStyle = i % 2 ? "#e0662f" : "#e9b04a";
         ctx.beginPath(); ctx.arc(x, y, 2.4, 0, TAU); ctx.fill();
+      } else if (item === "flamme") {
+        ctx.fillStyle = i % 2 ? "#e9b04a" : "#fff1b0";
+        ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.quadraticCurveTo(x + 4, y, x, y + 4); ctx.quadraticCurveTo(x - 4, y, x, y - 6); ctx.fill();
+      } else if (item === "bulles") {
+        ctx.strokeStyle = "rgba(140,200,230,.9)";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.arc(x, y, 2 + i % 3, 0, TAU); ctx.stroke();
+      } else if (item === "livre") {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.sin(t * 2 + i) * 0.5);
+        ctx.fillStyle = "#f2ead8"; ctx.strokeStyle = INK; ctx.lineWidth = 0.8;
+        ctx.fillRect(-3, -4, 6, 8); ctx.strokeRect(-3, -4, 6, 8);
+        ctx.restore();
+      } else if (item === "etoiles") {
+        ctx.fillStyle = "#f6efd5";
+        ctx.beginPath();
+        for (let k = 0; k < 8; k++) { const a = (k * Math.PI) / 4, rr = k % 2 ? 0.8 : 3; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+        ctx.fill();
       } else if (item === "taches") {
         ctx.fillStyle = ["#e0662f", "#3e7cb1", "#5b8c5a", "#d36b9c", "#e9b04a"][i];
         ctx.beginPath(); ctx.ellipse(x, cy + 18 + i % 2 * 4, 4 - p * 2, 2.5, 0, 0, TAU); ctx.fill();
