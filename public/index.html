@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Village Enxor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='55' r='38' fill='%231d1a20'/><circle cx='38' cy='50' r='8' fill='%23efe5d0'/><circle cx='62' cy='50' r='8' fill='%23efe5d0'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Italianno&family=Barlow+Semi+Condensed:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="world"></canvas>
+
+  <div id="hud" hidden>
+    <div id="hud-day" class="chip hud-day"></div>
+    <div id="hud-online" class="chip hud-online"></div>
+    <div class="chip hud-help">ZQSD / flèches ou clic pour bouger · <b>E</b> interagir · <b>Entrée</b> parler</div>
+    <div id="prompt" class="prompt" hidden></div>
+    <form id="chat-form" class="chat-form" hidden>
+      <input id="chat-input" maxlength="140" autocomplete="off" placeholder="Dis un truc… (Entrée pour envoyer, Échap pour annuler)">
+    </form>
+    <div id="toast" class="toast" hidden></div>
+  </div>
+
+  <div id="login" class="login">
+    <div class="login-box">
+      <h1>Enxor</h1>
+      <p class="subtitle">Inktober · Spécial DreamTeam</p>
+      <p class="lore">Les humains ont disparu. De l'encre qu'ils ont laissée sont nés les Enxors. Pendant 31 nuits, la Source fait remonter les vestiges de leur monde.</p>
+      <form id="login-form">
+        <label>Code de la team<input id="login-code" required autocomplete="off"></label>
+        <label>Ton pseudo<input id="login-pseudo" required minlength="2" maxlength="20" autocomplete="nickname"></label>
+        <button class="btn" type="submit">Entrer dans le village</button>
+        <p id="login-error" class="error" role="status"></p>
+      </form>
+    </div>
+  </div>
+
+  <div id="panel" class="panel-backdrop" hidden>
+    <div class="panel" role="dialog">
+      <button id="panel-close" class="panel-close" aria-label="Fermer">✕</button>
+      <div id="panel-body"></div>
+    </div>
+  </div>
+
+  <div id="lightbox" class="lightbox" hidden><img id="lightbox-img" alt=""></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/ink.js"></script>
+  <script src="js/village.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
