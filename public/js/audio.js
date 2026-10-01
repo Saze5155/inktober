@@ -127,6 +127,12 @@ window.Sound = (() => {
     night: { bpm: 58, chords: [[57, 60, 64], [52, 55, 59], [53, 57, 60], [50, 53, 57]], scale: [57, 60, 64, 67, 69, 72, 76], density: 0.28, cutoff: 2600, pad: 0.06 },
     inside: { bpm: 68, chords: [[48, 52, 55], [45, 48, 52], [41, 45, 48], [43, 47, 50]], scale: [60, 62, 64, 67, 69, 72, 74, 76, 79], density: 0.42, cutoff: 1800, pad: 0.05 },
     vampire: { bpm: 96, chords: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], scale: [62, 65, 67, 69, 70, 72, 74, 77], density: 0.85, cutoff: 3400, pad: 0.04, saw: true },
+    // Le Seuil : violoncelle et clavecin, lent et solennel
+    seuil: { bpm: 54, chords: [[50, 53, 57], [46, 50, 53], [41, 45, 48], [45, 49, 52]], scale: [62, 64, 65, 67, 69, 70, 72, 74], density: 0.3, cutoff: 2400, pad: 0.09, saw: true },
+    // Rive-Basse : folk chaleureux, flûte et cordes
+    rive: { bpm: 70, chords: [[48, 52, 55], [43, 47, 50], [45, 48, 52], [41, 45, 48]], scale: [67, 69, 72, 74, 76, 79, 81], density: 0.5, cutoff: 4200, pad: 0.05, flute: true },
+    // Cendre-Gravée : guitare flamenco, mode phrygien, mains frappées
+    cendre: { bpm: 112, chords: [[52, 56, 59], [53, 57, 60], [55, 59, 62], [53, 57, 60]], scale: [64, 65, 68, 69, 71, 72, 74, 76], density: 0.75, cutoff: 3800, pad: 0.03, guitar: true, claps: true },
     dragon: { bpm: 84, chords: [[50, 53, 57], [46, 50, 53], [43, 46, 50], [45, 49, 52]], scale: [62, 64, 65, 67, 69, 70, 73, 74, 77], density: 0.6, cutoff: 3000, pad: 0.07, saw: true },
     game: { bpm: 100, chords: [[48, 52, 55], [45, 48, 52], [53, 57, 60], [55, 59, 62]], scale: [60, 62, 64, 67, 69, 72, 74, 76], density: 0.7, cutoff: 4000, pad: 0.04 },
   };
@@ -149,7 +155,15 @@ window.Sound = (() => {
         const pool = m.scale.filter((n) => chord.some((c) => (n - c) % 12 === 0) || Math.random() < 0.35);
         const n = pool[Math.floor(Math.random() * pool.length)] || m.scale[0];
         if (m.saw) tone({ freq: midi(n), type: "sawtooth", t, dur: 0.35, vol: 0.05, filter: 1800, bus: musicFilter });
-        else pluck(midi(n + (mood === "inside" ? 12 : 0)), t, 0.06, musicFilter, 1.4);
+        else if (m.flute) tone({ freq: midi(n), type: "sine", t, dur: eighth * 1.8, vol: 0.07, attack: 0.06, bus: musicFilter });
+        else if (m.guitar) {
+          // gratté rapide de guitare : les notes de l'accord jouées en cascade
+          if (step % 4 === 0) chord.forEach((c, k) => tone({ freq: midi(c + 12), type: "triangle", t: t + k * 0.018, dur: 0.4, vol: 0.05, filter: 2600, bus: musicFilter }));
+          tone({ freq: midi(n), type: "triangle", t, dur: 0.22, vol: 0.07, filter: 3000, bus: musicFilter });
+        } else pluck(midi(n + (mood === "inside" ? 12 : 0)), t, 0.06, musicFilter, 1.4);
+      }
+      if (m.claps && (step === 2 || step === 6 || (step === 7 && Math.random() < 0.4))) {
+        noise({ t, dur: 0.06, vol: 0.12, freq: 1800, type: "bandpass", q: 1.5, bus: musicFilter });
       }
       if (Math.random() < 0.025) pluck(midi(m.scale[m.scale.length - 1] + 12), t, 0.03, musicFilter, 2.5); // goutte d'encre
       updateAmbience(t);

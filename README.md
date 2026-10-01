@@ -54,6 +54,9 @@ server/store.js    sauvegarde JSON + dossier d'images
 server/fish.js     les poissons de l'étang
 server/werewolf.js le loup-garou (rôles, phases, votes)
 public/js/audio.js musique et sons générés (Web Audio)
+public/js/world.js     le monde ouvert : le Seuil, Rive-Basse, Cendre-Gravée (sol en tuiles, bâtiments, PNJ, carte)
+server/npcs.js         les habitants du monde et leurs dialogues
+server/trophies.js     trophées et décorations
 public/js/interior.js  l'intérieur des cabanes et les 31 décors
 public/js/werewolf.js  le loup-garou côté navigateur (estrade, carte de rôle, vote)
 public/js/games/   un fichier par jeu du jour

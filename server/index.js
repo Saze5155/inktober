@@ -9,13 +9,15 @@ const clock = require("./clock");
 const fish = require("./fish");
 const createWerewolf = require("./werewolf");
 const createTrophies = require("./trophies");
+const NPCS = require("./npcs");
 
 const PORT = Number(process.env.PORT) || 3000;
 const TEAM_CODE = (process.env.TEAM_CODE || "dreamteam").trim();
 // Le pseudo qui possède « La Canne À Pêche » (la grande maison) au lieu d'une cabane
 const OWNER = (process.env.OWNER_PSEUDO || "").trim().toLowerCase();
 
-const WORLD = { w: 3000, h: 2400 };
+const WORLD = { w: 5200, h: 4600 }; // le monde ouvert (doit correspondre à public/js/world.js)
+const VILLAGE = { w: 3000, h: 2400 }; // le hameau, où roule le ballon
 const SPAWN = { x: 1500, y: 1420 };
 const PLOT_COUNT = 28; // doit correspondre aux emplacements de public/js/village.js
 const COLORS = ["#b3261e", "#e0662f", "#e9b04a", "#5b8c5a", "#3e7cb1", "#7d5ba6", "#d36b9c", "#4a4550"];
@@ -193,7 +195,7 @@ for (const [radius, count] of [[430, 10], [780, 18]]) {
 }
 const ball = { x: 1500, y: 1580, z: 0, vx: 0, vy: 0, vz: 0, lastKicker: null, lastKickAt: 0, combo: 0, moving: true };
 const ballHits = (x, y) =>
-  x < BALL_R || y < BALL_R + 30 || x > WORLD.w - BALL_R || y > WORLD.h - BALL_R ||
+  x < BALL_R || y < BALL_R + 30 || x > VILLAGE.w - BALL_R || y > VILLAGE.h - BALL_R ||
   solids.some((b) => x > b.x - BALL_R && x < b.x + b.w + BALL_R && y > b.y - BALL_R && y < b.y + b.h + BALL_R);
 
 function kickBall(id, px, py) {
@@ -281,6 +283,15 @@ io.on("connection", (socket) => {
     lg: lg.publicState(),
     lgYou: lg.privateFor(p.id),
     catalog: trophies.catalog(),
+    npcs: NPCS,
+  });
+
+  // parler à un habitant (il faut être à côté de lui)
+  socket.on("npc:talk", (id) => {
+    const npc = NPCS.find((n) => n.id === id);
+    if (!npc || o.zone !== "village" || Math.hypot(o.x - npc.x, o.y - npc.y) > 200) return;
+    trophies.bump(p, "npcs", id);
+    if (id === "ocre") trophies.bump(p, "ocre");
   });
 
   // garde-robe

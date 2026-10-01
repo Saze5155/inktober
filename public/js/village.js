@@ -360,6 +360,9 @@ window.Village = (() => {
       spoke(0, 110, 780),
       spoke(180, 110, 780),
       spoke(90, 70, 780),
+      // vers le Seuil (est) et vers Rive-Basse (sud)
+      [{ x: CENTER.x + 780 * 1.35, y: CENTER.y + 22 }, { x: W, y: CENTER.y }],
+      [{ x: CENTER.x, y: CENTER.y + 802 }, { x: CENTER.x, y: H }],
     ];
   }
 
@@ -446,11 +449,6 @@ window.Village = (() => {
     for (const d of flat) d.fn(d.x, d.y);
     tall.sort((a, b) => a.y - b.y).forEach((d) => d.fn(d.x, d.y));
 
-    const v = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.72);
-    v.addColorStop(0, "rgba(29,26,32,0)");
-    v.addColorStop(1, "rgba(29,26,32,.45)");
-    g.fillStyle = v;
-    g.fillRect(0, 0, W, H);
     return c;
   }
 

@@ -14,6 +14,8 @@ const COSMETICS = {
   braises: { slot: "aura", name: "Braises" },
   notes: { slot: "aura", name: "Notes de musique" },
   paillettes: { slot: "aura", name: "Paillettes de Prismaelyx" },
+  capuche: { slot: "head", name: "Capuche du pèlerin" },
+  sablier: { slot: "aura", name: "Sable de Silentis" },
 };
 const SLOTS = ["head", "face", "back", "aura"];
 
@@ -31,6 +33,8 @@ const TROPHIES = [
   { id: "danseur", name: "Prismaelyx applaudit", desc: "Danser 20 fois.", goal: 20, stat: "dances", reward: ["paillettes"] },
   { id: "loupalpha", secret: true, name: "Loup alpha", desc: "Gagner une partie de loup-garou en tant que loup.", reward: ["oreilles"] },
   { id: "sage", name: "Sage du conseil", desc: "Gagner une partie de loup-garou avec le village.", reward: ["echarpe"] },
+  { id: "pelerin", name: "Pèlerin des trois terres", desc: "Parler à tous les habitants du Seuil, de Rive-Basse et de Cendre-Gravée.", goal: 9, stat: "npcs", reward: ["capuche"] },
+  { id: "dejavu", secret: true, name: "Déjà-vu", desc: "Remarquer que les journées se répètent à Cendre-Gravée (parler 3 fois à Ocre).", goal: 3, stat: "ocre", reward: ["sablier"] },
 ];
 const byId = Object.fromEntries(TROPHIES.map((t) => [t.id, t]));
 

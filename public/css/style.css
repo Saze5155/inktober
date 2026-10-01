@@ -238,6 +238,30 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .wall li p { margin: 0 0 8px; line-height: 1.35; overflow-wrap: anywhere; }
 .wall li span { font-size: 13px; color: #6b6170; }
 
+/* ---------- Monde ---------- */
+
+.region-banner {
+  position: fixed;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  display: grid;
+  gap: 2px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .6);
+}
+.region-banner strong { font-family: "Italianno", cursive; font-weight: 400; font-size: 92px; line-height: .9; color: var(--gold); }
+.region-banner span { color: var(--text); font-size: 18px; letter-spacing: .04em; }
+.region-banner.show { animation: region 4.2s ease forwards; }
+@keyframes region { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+
+.npc { display: flex; gap: 18px; align-items: flex-start; }
+.npc-portrait { width: 80px; height: 80px; border-radius: 12px; border: 1px solid var(--line); flex: none; }
+.npc h2 { font-size: 54px; margin-bottom: 8px; }
+.npc-line { font-size: 18px; line-height: 1.45; min-height: 3.2em; }
+.world-map { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); }
+
 /* ---------- Trophées ---------- */
 
 .trophy-btn { font: inherit; font-weight: 700; color: var(--gold); cursor: pointer; }

@@ -525,6 +525,15 @@ window.Ink = (() => {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+    } else if (item === "capuche") {
+      ctx.fillStyle = "#2b2731";
+      ctx.beginPath();
+      ctx.moveTo(cx - 19, top + 16);
+      ctx.quadraticCurveTo(cx - 20, top - 10, cx + face * 4, top - 16);
+      ctx.quadraticCurveTo(cx + 22, top - 6, cx + 19, top + 16);
+      ctx.quadraticCurveTo(cx, top + 2, cx - 19, top + 16);
+      ctx.fill();
+      ctx.stroke();
     } else if (item === "plume") {
       ctx.fillStyle = "#efe5d0";
       ctx.save();
@@ -552,6 +561,11 @@ window.Ink = (() => {
       if (item === "braises") {
         ctx.fillStyle = i % 2 ? "#e0662f" : "#e9b04a";
         ctx.beginPath(); ctx.arc(x, y, 2.4, 0, TAU); ctx.fill();
+      } else if (item === "sablier") {
+        // du sable noir qui s'écoule vers le bas
+        const yy = cy - 4 + p * 40;
+        ctx.fillStyle = "#3b3532";
+        ctx.beginPath(); ctx.arc(cx - 14 + i * 7, yy, 1.6, 0, TAU); ctx.fill();
       } else if (item === "notes") {
         word(ctx, "♪", x, y, 12, INK, 700);
       } else if (item === "paillettes") {

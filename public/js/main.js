@@ -20,6 +20,7 @@
     pops: [], sparks: [], fireflies: [], sky: { dark: 0, dusk: 0 }, skyAt: -1, lastBurst: 0,
     act: null, fish: null, wall: [], fishing: { records: {}, log: [] }, stoneGlow: [], lastStone: -1, crows: [], stepT: 0,
     catalog: { cosmetics: {}, slots: [], trophies: [] }, fx: [], dayTarget: null, lastDayAct: 0,
+    region: null,
   };
 
   // action spéciale du jour sur un autre Enxor (touche F), seulement le jour du vestige
@@ -214,6 +215,7 @@
     if (data.ball) Object.assign(S.ball, { x: data.ball[0], y: data.ball[1], z: data.ball[2], tx: data.ball[0], ty: data.ball[1], tz: data.ball[2] });
     S.wall = data.wall || [];
     if (data.catalog) S.catalog = data.catalog;
+    World.setNpcs(data.npcs);
     Werewolf.onState(data.lg);
     Werewolf.onYou(data.lgYou);
     S.fishing = data.fishing || S.fishing;
@@ -309,7 +311,7 @@
   function updateHelp() {
     $("hud-help").innerHTML = inCabin()
       ? "Q / D ou flèches · clic pour marcher · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes"
-      : "ZQSD / flèches ou clic pour bouger · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes";
+      : "ZQSD / flèches ou clic pour bouger · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes · <b>M</b> carte";
   }
 
   function rebuildWorld() {
@@ -330,6 +332,7 @@
       { kind: "records", x: rs.x, y: rs.y + 20, r: 60, label: "Lire les records de pêche", hit: { x: rs.x - 80, y: rs.y - 100, w: 160, h: 100 } },
       { kind: "board", x: bd.x, y: bd.y + 24, r: 75, label: "Lire le mur des mots", hit: { x: bd.x - 85, y: bd.y - 130, w: 170, h: 130 } },
       ...V.SEATS.map((s, i) => ({ kind: "seat", id: "seat" + i, x: s.x, y: s.y + 26, r: 40, label: "S'asseoir près du feu", seat: s })),
+      ...World.interactables(),
       { kind: "stage", x: V.ARENA.x, y: V.STAGE.y + 130, r: 110, goX: V.ARENA.x, goY: V.STAGE.y + 120, label: "Loup-garou d'encre", hit: { x: V.STAGE.x - 20, y: V.STAGE.y - 150, w: V.STAGE.w + 40, h: 260 } },
     ];
     for (const p of S.players.values()) {
@@ -365,7 +368,7 @@
 
   function blocked(x, y) {
     if (inCabin()) return x < 30 || x > (roomsOpen(cabinOwner()) + 1) * I.RW - 30;
-    if (x < 20 || y < 40 || x > V.W - 20 || y > V.H - 20) return true;
+    if (World.blocked(x, y)) return true; // bords du monde, mer, montagnes, bâtiments des régions
     if (pondDist(x, y) < 1.08) return true; // on ne marche pas sur l'eau
     return S.solids.some((b) => x > b.x - 12 && x < b.x + b.w + 12 && y > b.y - 6 && y < b.y + b.h + 6);
   }
@@ -373,6 +376,10 @@
   // distance « normalisée » au centre de l'étang : 1 = le bord de l'eau
   const pondDist = (x, y) => Math.hypot((x - V.POND.x) / V.POND.rx, (y - V.POND.y) / V.POND.ry);
   const bobberOf = (e) => {
+    if (pondDist(e.x, e.y) > 1.7) {
+      const b = World.spotBobber(e);
+      if (b) return b;
+    }
     const k = 0.5 / Math.max(1, pondDist(e.x, e.y));
     return { x: V.POND.x + (e.x - V.POND.x) * k, y: V.POND.y + (e.y - V.POND.y) * k };
   };
@@ -492,7 +499,7 @@
       const pd = pondDist(m.x, m.y);
       if (pd < 1.5) S.near = { kind: "pond", x: m.x, y: m.y, r: 1, label: "" };
     }
-    if (S.near?.kind === "pond") S.near.label = !S.fish ? "Pêcher" : S.fish.state === "bite" ? "FERRER !" : "Ranger la canne";
+    if (S.near?.kind === "pond" || S.near?.kind === "spot") S.near.label = !S.fish ? "Pêcher" : S.fish.state === "bite" ? "FERRER !" : "Ranger la canne";
     if (S.near?.kind === "seat" && S.act === "sit") S.near.label = "Se lever";
     if (Werewolf.blocksCabins() && (S.near?.kind === "cabin" || (S.near?.kind === "house" && S.me.owner))) S.near = null;
     const lgAction = !inside && Werewolf.nearAction(m);
@@ -522,7 +529,13 @@
     const fireV = inside ? 0 : clamp(1 - Math.hypot(m.x - V.FIRE.x, m.y - V.FIRE.y) / 520, 0, 1);
     const waterV = inside ? 0 : clamp(1.6 - pondDist(m.x, m.y) / 2.2, 0, 1);
     Sound.ambience({ fire: fireV, water: waterV, crickets: !inside && S.sky.dark > 0.3 ? 0.7 : 0 });
-    Sound.setMood(inside ? "inside" : S.sky.dark > 0.3 ? "night" : "day");
+    // région traversée : bandeau d'arrivée et musique de la région
+    const reg = inside ? null : World.regionAt(m.x, m.y);
+    if (reg && reg.id !== S.region) {
+      if (S.region) showRegion(reg);
+      S.region = reg.id;
+    }
+    Sound.setMood(inside ? "inside" : reg.mood || (S.sky.dark > 0.3 ? "night" : "day"));
 
     for (const e of S.ents.values()) {
       if (e === m) continue;
@@ -681,6 +694,7 @@
     L.push({ x: (V.STONES[0].x + V.STONES[7].x) / 2, y: V.STONES[3].y, r: 220, k: 0.6, color: "rgba(150,120,230,.18)" });
     for (const e of S.ents.values()) if (e.zone === "village" && vis(e.x, e.y)) L.push({ x: e.x, y: e.y - 20, r: 90, k: 0.7 });
     if (vis(S.ball.x, S.ball.y)) L.push({ x: S.ball.x, y: S.ball.y, r: 60, k: 0.4 });
+    L.push(...World.lights(vis));
     return L;
   }
 
@@ -699,10 +713,23 @@
 
   function villageCamera() {
     const m = me();
+    const WW = World.W, WH = World.H;
     return {
-      x: Math.round(vw > V.W ? (V.W - vw) / 2 : clamp(m.x - vw / 2, 0, V.W - vw)),
-      y: Math.round(vh > V.H ? (V.H - vh) / 2 : clamp(m.y - vh / 2 - 40, 0, V.H - vh)),
+      x: Math.round(vw > WW ? (WW - vw) / 2 : clamp(m.x - vw / 2, 0, WW - vw)),
+      y: Math.round(vh > WH ? (WH - vh) / 2 : clamp(m.y - vh / 2 - 40, 0, WH - vh)),
     };
+  }
+
+  function showRegion(reg) {
+    const b = $("region-banner");
+    b.replaceChildren(el("strong", { text: reg.name }), el("span", { text: reg.sub }));
+    b.hidden = false;
+    b.classList.remove("show");
+    void b.offsetWidth;
+    b.classList.add("show");
+    clearTimeout(showRegion.timer);
+    showRegion.timer = setTimeout(() => (b.hidden = true), 4200);
+    Sound.play("bell", 0.5);
   }
 
   function interiorView() {
@@ -726,7 +753,7 @@
     const p = S.players.get(e.id);
     const et = t - e.emoteAt;
     const fishing = e.act === "fish" && e.zone === "village";
-    const face = fishing ? Math.sign(V.POND.x - e.x) || 1 : e.face;
+    const face = fishing ? Math.sign(bobberOf(e).x - e.x) || 1 : e.face;
     const look = e.zone === "village" ? Werewolf.entLook(e.id) : null;
     const opts = { seed: e.seed, color: p?.color, moving: e.moving, face, rod: p?.owner || fishing, emote: e.emote, et, eyes: look?.eyes, wear: p?.wear };
     if (fishing) drawLine(e, face, t);
@@ -827,7 +854,7 @@
     ctx.fillStyle = "#1b1b1b";
     ctx.fillRect(0, 0, vw, vh);
     ctx.translate(-cam.x, -cam.y);
-    ctx.drawImage(S.bg, 0, 0);
+    World.drawGround(ctx, cam, vw, vh, S.bg);
 
     ctx.fillStyle = Ink.INK;
     for (const f of S.footprints) {
@@ -851,6 +878,9 @@
     for (const c of S.crows) if (vis(c.x, c.y)) items.push({ y: c.y, draw: () => V.drawCrow(ctx, c, t) });
     items.push(...Werewolf.items(ctx, t, vis));
     items.push({ y: 99999, draw: () => Werewolf.drawRaven(ctx, t) });
+    const talked = new Set(S.players.get(S.me.id)?.stats?.npcs || []);
+    const worldItems = World.items(ctx, t, vis, talked);
+    items.push(...worldItems);
     for (const p of S.players.values()) {
       if (p.plot == null) continue;
       const pl = V.plots[p.plot];
@@ -866,6 +896,7 @@
     for (const e of here) items.push({ y: e.y, draw: () => drawEnt(e, t) });
     items.sort((a, b) => a.y - b.y).forEach((i) => i.draw());
     drawFx(t);
+    World.overlay(ctx, cam, vw, vh, t);
 
     // nuit : tout s'assombrit sauf autour des lumières
     V.drawNight(ctx, cam, vw, vh, dpr, S.sky, villageLights(cam));
@@ -903,6 +934,7 @@
       const pl = V.plots[p.plot];
       if (vis(pl.x, pl.y)) Ink.label(ctx, p.pseudo, pl.x, pl.y - 150, { size: 13, dot: p.cabin.color });
     }
+    for (const it of worldItems) it.label?.();
     for (const e of here) {
       if (Werewolf.view(e).name) drawOverheads(e, t);
       else if (e.chat && performance.now() < e.chatUntil) Ink.bubble(ctx, e.chat, e.x, e.y - 68);
@@ -962,6 +994,8 @@
       S.socket.emit("dayact", S.dayTarget.id);
     } else if (e.key.toLowerCase() === "t") {
       openPanel({ type: "trophies" });
+    } else if (e.key.toLowerCase() === "m") {
+      openPanel({ type: "map" });
     }
   });
   window.addEventListener("keyup", (e) => {
@@ -1015,7 +1049,12 @@
     if ((it.kind === "cabin" || it.kind === "house") && Werewolf.blocksCabins()) {
       if (it.kind === "cabin" || S.me.owner) return toast("Pas pendant une partie de loup-garou : on reste dans le village !");
     }
-    if (it.kind === "pond") return fishAction();
+    if (it.kind === "pond" || it.kind === "spot") return fishAction();
+    if (it.kind === "npc") {
+      S.socket.emit("npc:talk", it.id);
+      Sound.play("chat");
+      return openPanel({ type: "npc", id: it.id, line: 0 });
+    }
     if (it.kind === "seat") return toggleSeat(it.seat);
     if (it.kind !== "frame") Sound.play("click");
     if (it.kind === "cabin") enterCabin(it.id);
@@ -1051,6 +1090,8 @@
     else if (type === "records") renderRecords(body);
     else if (type === "stage") Werewolf.renderPanel(body);
     else if (type === "trophies") renderTrophies(body);
+    else if (type === "npc") renderNpc(body);
+    else if (type === "map") renderMap(body);
     else if (type === "board") renderBoard(body);
   }
 
@@ -1100,6 +1141,43 @@
           status && el("em", { text: status }));
       })),
     );
+  }
+
+  // ---------- Habitants et carte ----------
+
+  function renderNpc(body) {
+    const n = World.npcs.find((x) => x.id === S.panel.id);
+    if (!n) return closePanel();
+    const i = S.panel.line;
+    const portrait = el("canvas", { class: "npc-portrait", width: "160", height: "160" });
+    const pg = portrait.getContext("2d");
+    pg.scale(2, 2);
+    pg.fillStyle = "#e8dcc4";
+    pg.fillRect(0, 0, 80, 80);
+    pg.translate(40, 66);
+    if (n.small) pg.scale(0.8, 0.8);
+    Ink.enxor(pg, 0, 0, performance.now() / 1000, { seed: n.x % 97, color: n.color, wear: n.wear, face: 1 });
+    const last = i >= n.lines.length - 1;
+    body.append(
+      el("div", { class: "npc" },
+        portrait,
+        el("div", {},
+          el("p", { class: "eyebrow", text: n.title }),
+          el("h2", { class: "script", text: n.name }),
+          el("p", { class: "npc-line", text: n.lines[i] }),
+          el("div", { class: "actions" },
+            last
+              ? el("button", { class: "btn", text: "Au revoir", onclick: closePanel })
+              : el("button", { class: "btn", text: "Suite", onclick: () => { S.panel.line++; Sound.play("click"); renderPanel(); } }),
+            el("span", { class: "muted", text: `${i + 1} / ${n.lines.length}` })))),
+    );
+  }
+
+  function renderMap(body) {
+    const c = el("canvas", { class: "world-map", width: "1040", height: "920" });
+    const g = c.getContext("2d");
+    World.drawMap(g, 1040, 920, S.players, S.me.id, [...S.ents.values()]);
+    body.append(el("p", { class: "eyebrow", text: "Le monde d'Enxor" }), el("h2", { class: "script", text: "La carte" }), c);
   }
 
   // ---------- Activités du village ----------
