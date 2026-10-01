@@ -146,18 +146,20 @@ window.World = (() => {
 
   const SCALE = 2;
   const cache = new Map();
-  function sprite(key, w, h, ax, ay, draw) {
+  // les images pré-dessinées sont gardées en mémoire, mais pas indéfiniment (les plus anciennes sont oubliées)
+  function sprite(key, w, h, ax, ay, draw, scale = SCALE) {
     let c = cache.get(key);
-    if (c) return c;
+    if (c) { cache.delete(key); cache.set(key, c); return c; }
     c = document.createElement("canvas");
-    c.width = w * SCALE;
-    c.height = h * SCALE;
+    c.width = Math.ceil(w * scale);
+    c.height = Math.ceil(h * scale);
     Object.assign(c, { w, h, ax, ay });
     const g = c.getContext("2d");
-    g.scale(SCALE, SCALE);
+    g.scale(scale, scale);
     g.translate(ax, ay);
     draw(g);
     cache.set(key, c);
+    if (cache.size > 160) cache.delete(cache.keys().next().value);
     return c;
   }
   const blit = (ctx, s, x, y) => ctx.drawImage(s, x - s.ax, y - s.ay, s.w, s.h);
@@ -440,7 +442,12 @@ window.World = (() => {
         ctx.drawImage(getTile(tx, ty), x0, y0);
       }
     }
-    if (cam.x < 3000 && cam.y < 2400) ctx.drawImage(villageBg, 0, 0);
+    // le fond du hameau : seulement la partie visible
+    if (cam.x < 3000 && cam.y < 2400) {
+      const sx = Math.max(0, Math.floor(cam.x)), sy = Math.max(0, Math.floor(cam.y));
+      const sw = Math.min(3000, Math.ceil(cam.x + vw)) - sx, sh = Math.min(2400, Math.ceil(cam.y + vh)) - sy;
+      if (sw > 0 && sh > 0) ctx.drawImage(villageBg, sx, sy, sw, sh, sx, sy, sw, sh);
+    }
   }
 
   // ---------- Bâtiments ----------
@@ -619,9 +626,10 @@ window.World = (() => {
     });
   }
 
-  function treeSprite(tr, f) {
-    return sprite(`tree|${tr.seed}|${f}`, tr.r * 6, tr.r * 6, tr.r * 3, tr.r * 4.4, (g) => {
-      const r = Ink.rng(tr.seed * 13 + f * 7919);
+  // les arbres ne « bouillonnent » pas : une seule version, à taille normale (sinon des centaines de grandes images en mémoire)
+  function treeSprite(tr) {
+    return sprite(`tree|${tr.seed}`, tr.r * 6, tr.r * 6, tr.r * 3, tr.r * 4.4, (g) => {
+      const r = Ink.rng(tr.seed * 13);
       Ink.shadow(g, 0, 2, tr.r, tr.r * 0.35, 0.35);
       box(g, r, -tr.r * 0.3, -tr.r * 1.4, tr.r * 0.6, tr.r * 1.4, "#2b1f17", { w: 1.6 });
       // feuillage noir et vert, en plusieurs touffes
@@ -633,7 +641,7 @@ window.World = (() => {
       const top = Ink.ellipse(0, -tr.r * 2.3, tr.r * 1.1, tr.r * 0.85, 14);
       Ink.fill(g, top, r, "#2e5236", 2);
       Ink.hatch(g, top, r, { gap: 5, alpha: 0.25 });
-    });
+    }, 1);
   }
 
   function terrathosSprite(f) {
@@ -825,7 +833,7 @@ window.World = (() => {
       if (!vis(tr.x, tr.y)) continue;
       // le feuillage devient transparent quand on passe dessous
       const under = me && Math.abs(me.x - tr.x) < tr.r * 1.8 && me.y < tr.y && me.y > tr.y - tr.r * 3.4;
-      out.push({ y: tr.y, draw: () => { ctx.save(); if (under) ctx.globalAlpha = 0.35; blit(ctx, treeSprite(tr, f), tr.x, tr.y); ctx.restore(); } });
+      out.push({ y: tr.y, draw: () => { ctx.save(); if (under) ctx.globalAlpha = 0.35; blit(ctx, treeSprite(tr), tr.x, tr.y); ctx.restore(); } });
     }
     if (vis(PILLAR.x, PILLAR.y)) out.push({ y: PILLAR.y, draw: () => blit(ctx, pillarSprite(f), PILLAR.x, PILLAR.y) });
     if (vis(TENEBROS.x, TENEBROS.y)) out.push({ y: TENEBROS.y, draw: () => { blit(ctx, tenebrosSprite(f), TENEBROS.x, TENEBROS.y); runes(ctx, t); } });
@@ -910,11 +918,8 @@ window.World = (() => {
       ctx.globalCompositeOperation = "lighter";
       if (cave) {
         for (const p of POOLS) {
-          const pg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3);
-          pg.addColorStop(0, `rgba(120,100,255,${0.35 + Math.sin(t * 2 + p.x) * 0.1})`);
-          pg.addColorStop(1, "rgba(120,100,255,0)");
-          ctx.fillStyle = pg;
-          ctx.fillRect(p.x - p.r * 3, p.y - p.r * 3, p.r * 6, p.r * 6);
+          ctx.globalAlpha = 0.8 + Math.sin(t * 2 + p.x) * 0.2;
+          Ink.halo(ctx, "rgba(120,100,255,0.4)", p.x, p.y, p.r * 3);
         }
       } else {
         // des yeux verts qui clignent entre les arbres
@@ -929,14 +934,11 @@ window.World = (() => {
     }
     ctx.save();
     if (reg.id === "rive") {
-      for (let i = 0; i < 9; i++) {
+      // brume (coupée en mode léger)
+      for (let i = 0; !Ink.quality.low && i < 6; i++) {
         const x = ((i * 523 + t * 14) % 3400) - 200, y = 2750 + ((i * 377) % 1800);
-        if (x < cam.x - 400 || x > cam.x + vw + 400 || y < cam.y - 300 || y > cam.y + vh + 300) continue;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, 320);
-        g.addColorStop(0, "rgba(230,225,210,.16)");
-        g.addColorStop(1, "rgba(230,225,210,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(x - 320, y - 320, 640, 640);
+        if (x < cam.x - 300 || x > cam.x + vw + 300 || y < cam.y - 300 || y > cam.y + vh + 300) continue;
+        Ink.halo(ctx, "rgba(230,225,210,0.16)", x, y, 280);
       }
       // lumière dorée de fin d'après-midi
       ctx.fillStyle = "rgba(233,176,74,.06)";

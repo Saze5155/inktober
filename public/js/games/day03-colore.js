@@ -111,10 +111,10 @@
       const canvas = document.createElement("canvas");
       canvas.className = "game-canvas";
       root.append(canvas);
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { alpha: false }); // opaque : plus rapide à afficher
       let vw = 0, vh = 0, dpr = 1, s = 1, ox = 0, oy = 0;
       function resize() {
-        dpr = window.devicePixelRatio || 1;
+        dpr = Ink.quality.dpr();
         vw = root.clientWidth; vh = root.clientHeight;
         canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
         s = Math.min(vw / AW, vh / AH); ox = (vw - AW * s) / 2; oy = (vh - AH * s) / 2;

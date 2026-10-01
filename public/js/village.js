@@ -247,11 +247,7 @@ window.Village = (() => {
     if (ownerOnline || night) {
       // fenêtre allumée la nuit, et fumée quand le propriétaire est connecté
       ctx.save();
-      const glow = ctx.createRadialGradient(x + 29, y - 49, 2, x + 29, y - 49, 40);
-      glow.addColorStop(0, "rgba(255,200,100,.45)");
-      glow.addColorStop(1, "rgba(255,200,100,0)");
-      ctx.fillStyle = glow;
-      ctx.fillRect(x - 11, y - 89, 80, 80);
+      Ink.halo(ctx, "rgba(255,200,100,0.45)", x + 29, y - 49, 40);
       ctx.fillStyle = "#ffcf7a";
       ctx.fillRect(x + 21, y - 57, 16, 16);
       ctx.strokeStyle = INK;
@@ -294,11 +290,9 @@ window.Village = (() => {
     ctx.beginPath();
     ctx.ellipse(CENTER.x, CENTER.y - 2, 76, 32, 0, 0, Math.PI * 2);
     ctx.clip();
-    const glow = ctx.createRadialGradient(CENTER.x, CENTER.y - 2, 0, CENTER.x, CENTER.y - 2, 70);
-    glow.addColorStop(0, `rgba(233,176,74,${0.22 + Math.sin(t * 1.5) * 0.08})`);
-    glow.addColorStop(1, "rgba(233,176,74,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(CENTER.x - 80, CENTER.y - 40, 160, 80);
+    ctx.globalAlpha = 0.75 + Math.sin(t * 1.5) * 0.25;
+    Ink.halo(ctx, "rgba(233,176,74,0.3)", CENTER.x, CENTER.y - 2, 70);
+    ctx.globalAlpha = 1;
     ctx.lineWidth = 1.5;
     for (let k = 0; k < 3; k++) {
       const p = (t * 0.3 + k / 3) % 1;
@@ -805,26 +799,18 @@ window.Village = (() => {
     ng.fillRect(0, 0, w, h);
     ng.globalCompositeOperation = "destination-out";
     ng.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
-    for (const l of lights) {
-      const g = ng.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r);
-      g.addColorStop(0, `rgba(0,0,0,${l.k ?? 0.95})`);
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ng.fillStyle = g;
-      ng.fillRect(l.x - l.r, l.y - l.r, l.r * 2, l.r * 2);
-    }
+    for (const l of lights) Ink.halo(ng, `rgba(0,0,0,${l.k ?? 0.95})`, l.x, l.y, l.r);
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(nightC, 0, 0);
-    // halo chaud des lumières
-    ctx.globalCompositeOperation = "lighter";
-    ctx.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
-    for (const l of lights) {
-      const r = l.r * 0.55;
-      const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, r);
-      g.addColorStop(0, l.color || `rgba(255,170,80,${0.22 * (s.dark / 0.62)})`);
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(l.x - r, l.y - r, r * 2, r * 2);
+    // halo chaud des lumières (coupé en mode léger)
+    if (!Ink.quality.low) {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.setTransform(dpr, 0, 0, dpr, -cam.x * dpr, -cam.y * dpr);
+      for (const l of lights) {
+        ctx.globalAlpha = l.color ? 1 : s.dark / 0.62;
+        Ink.halo(ctx, l.color || "rgba(255,170,80,0.22)", l.x, l.y, l.r * 0.55);
+      }
     }
     ctx.restore();
   }

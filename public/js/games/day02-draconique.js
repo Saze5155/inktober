@@ -17,13 +17,10 @@
     if (glow) {
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      for (let i = 0; i < n; i += 3) {
-        const g = ctx.createRadialGradient(pts[i][0], pts[i][1], 0, pts[i][0], pts[i][1], rad(i) * 3);
-        g.addColorStop(0, glow);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(pts[i][0] - rad(i) * 3, pts[i][1] - rad(i) * 3, rad(i) * 6, rad(i) * 6);
-      }
+      const gc = glow.startsWith("#")
+        ? `rgba(${parseInt(glow.slice(1, 3), 16)},${parseInt(glow.slice(3, 5), 16)},${parseInt(glow.slice(5, 7), 16)},0.33)`
+        : glow;
+      for (let i = 0; i < n; i += 3) Ink.halo(ctx, gc, pts[i][0], pts[i][1], rad(i) * 3);
       ctx.restore();
     }
     // ombre
@@ -323,11 +320,9 @@
         }
         ctx.stroke();
         for (const s of st.stars) {
-          const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 40);
-          g.addColorStop(0, `rgba(246,239,213,${0.2 + s.lit * 0.8})`);
-          g.addColorStop(1, "rgba(246,239,213,0)");
-          ctx.fillStyle = g;
-          ctx.fillRect(s.x - 40, s.y - 40, 80, 80);
+          ctx.globalAlpha = 0.2 + s.lit * 0.8;
+          Ink.halo(ctx, "rgba(246,239,213,1)", s.x, s.y, 40);
+          ctx.globalAlpha = 1;
           ctx.fillStyle = "#f6efd5";
           ctx.beginPath();
           for (let i = 0; i < 10; i++) {
@@ -398,10 +393,8 @@
         if (st.tired) for (let i = 0; i < body.length; i++) body[i] = [940 - i * 18, 130 + Math.sin(i * 0.4) * 14];
         drawDragon(ctx, body, { color: "#b3261e", t, eye: st.tired ? "half" : "open", eyeColor: "#e9b04a" });
         for (const f of st.fire) {
-          const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, 18);
-          g.addColorStop(0, "#fff1b0"); g.addColorStop(0.5, "#e0662f"); g.addColorStop(1, "rgba(179,38,30,0)");
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(f.x, f.y, 18, 0, TAU); ctx.fill();
+          Ink.halo(ctx, "rgba(224,102,47,1)", f.x, f.y, 20);
+          Ink.halo(ctx, "rgba(255,241,176,1)", f.x, f.y, 9);
         }
         if (st.tired) scaleItem(ctx, st.drop.x, st.drop.y, "#e4574b", t);
         else Ink.word(ctx, `Tiens bon : ${Math.ceil(st.survive - st.time)} s`, AW / 2, 40 + 48, 20, INK, 700);
@@ -477,10 +470,10 @@
       const canvas = document.createElement("canvas");
       canvas.className = "game-canvas";
       root.append(canvas);
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { alpha: false }); // opaque : plus rapide à afficher
       let vw = 0, vh = 0, dpr = 1, s = 1, ox = 0, oy = 0;
       function resize() {
-        dpr = window.devicePixelRatio || 1;
+        dpr = Ink.quality.dpr();
         vw = root.clientWidth; vh = root.clientHeight;
         canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
         s = Math.min(vw / AW, vh / AH); ox = (vw - AW * s) / 2; oy = (vh - AH * s) / 2;

@@ -3,7 +3,7 @@
   const V = Village;
   const I = Interior;
   const canvas = $("world");
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha: false }); // opaque : plus rapide à afficher
   const AUTH_KEY = "enxor.auth";
   const SPEED = 230;
   const KEYMAP = { arrowup: "u", z: "u", w: "u", arrowdown: "d", s: "d", arrowleft: "l", q: "l", a: "l", arrowright: "r", d: "r", shift: "run" };
@@ -414,9 +414,27 @@
 
   // ---------- Boucle ----------
 
+  // si le jeu rame (moins de ~35 images/s) et que la personne n'a rien choisi, on passe en mode léger tout seul
+  const perf = { frames: [], decided: false, since: performance.now() };
+  function watchPerf(dtMs) {
+    if (perf.decided || Ink.quality.explicit || Ink.quality.low) return;
+    if (performance.now() - perf.since < 3000) return; // on laisse le temps au jeu de se charger
+    perf.frames.push(dtMs);
+    if (perf.frames.length < 150) return;
+    perf.decided = true;
+    const sorted = perf.frames.slice().sort((a, b) => a - b);
+    if (sorted[Math.floor(sorted.length / 2)] > 28) {
+      Ink.quality.auto();
+      resize();
+      soundButtons();
+      toast("Le jeu ramait un peu : mode léger activé (bouton ⚡ en haut à droite pour changer).", 6000);
+    }
+  }
+
   let lastT = 0;
   function loop(now) {
     const t = now / 1000;
+    if (lastT) watchPerf((t - lastT) * 1000);
     const dt = Math.min(0.05, t - lastT || 0);
     lastT = t;
     if (!S.game) {
@@ -621,7 +639,7 @@
     if (!inside) updateCrows(dt, t);
 
     // lucioles la nuit, autour du joueur
-    if (!inside && S.sky.dark > 0.3) {
+    if (!inside && S.sky.dark > 0.3 && !Ink.quality.low) {
       while (S.fireflies.length < 18) S.fireflies.push({ x: m.x + (Math.random() - 0.5) * 900, y: m.y + (Math.random() - 0.5) * 600, ph: Math.random() * 10 });
       for (const f of S.fireflies) {
         f.x += Math.sin(t * 0.7 + f.ph) * 12 * dt;
@@ -727,7 +745,7 @@
 
   let vw = 0, vh = 0, dpr = 1;
   function resize() {
-    dpr = window.devicePixelRatio || 1;
+    dpr = Ink.quality.dpr();
     vw = window.innerWidth;
     vh = window.innerHeight;
     canvas.width = Math.round(vw * dpr);
@@ -861,10 +879,8 @@
           const p = Math.min(1, age * 1.6 + k * 0.03);
           const x = a.x + (b.x - a.x) * p + Math.sin(k * 3 + t * 20) * 6, y = a.y - 22 * scale + (b.y - a.y) * p + Math.cos(k * 2 + t * 18) * 6;
           ctx.globalAlpha = Math.max(0, 1 - age) * (1 - k / 16);
-          const g = ctx.createRadialGradient(x, y, 0, x, y, 12);
-          g.addColorStop(0, "#fff1b0"); g.addColorStop(0.5, "#e0662f"); g.addColorStop(1, "rgba(179,38,30,0)");
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill();
+          Ink.halo(ctx, "rgba(224,102,47,1)", x, y, 13);
+          Ink.halo(ctx, "rgba(255,241,176,1)", x, y, 6);
         }
       }
       ctx.restore();
@@ -952,13 +968,10 @@
     ctx.save();
     ctx.globalCompositeOperation = S.sky.dark > 0.2 ? "lighter" : "source-over";
     for (const f of S.fireflies) {
-      const a = 0.5 + Math.sin(t * 3 + f.ph) * 0.5;
-      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, 10);
-      g.addColorStop(0, `rgba(255,220,120,${a})`);
-      g.addColorStop(1, "rgba(255,220,120,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(f.x - 10, f.y - 10, 20, 20);
+      ctx.globalAlpha = 0.5 + Math.sin(t * 3 + f.ph) * 0.5;
+      Ink.halo(ctx, "rgba(255,220,120,1)", f.x, f.y, 10);
     }
+    ctx.globalAlpha = 1;
     for (const p of S.sparks) {
       ctx.globalAlpha = Math.max(0, p.life / p.max);
       ctx.fillStyle = p.color;
@@ -1230,11 +1243,7 @@
     const { x, y } = item;
     const bob = Math.sin(t * 3 + x) * 3;
     ctx.save();
-    const glow = ctx.createRadialGradient(x, y - 14, 0, x, y - 14, 46);
-    glow.addColorStop(0, "rgba(233,176,74,.45)");
-    glow.addColorStop(1, "rgba(233,176,74,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(x - 46, y - 60, 92, 92);
+    Ink.halo(ctx, "rgba(233,176,74,0.45)", x, y - 14, 46);
     if (step.look === "ember") {
       for (const [c, w, h] of [["#e0662f", 10, 26], ["#e9b04a", 6, 16]]) {
         ctx.fillStyle = c;
@@ -1270,11 +1279,7 @@
     const { x, y } = pg;
     const bob = Math.sin(t * 2 + x) * 4;
     ctx.save();
-    const glow = ctx.createRadialGradient(x, y - 24, 0, x, y - 24, 54);
-    glow.addColorStop(0, "rgba(246,239,213,.5)");
-    glow.addColorStop(1, "rgba(246,239,213,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(x - 54, y - 78, 108, 108);
+    Ink.halo(ctx, "rgba(246,239,213,0.5)", x, y - 24, 54);
     Ink.shadow(ctx, x, y + 2, 12, 4, 0.25);
     ctx.translate(x, y - 26 + bob);
     ctx.rotate(Math.sin(t * 1.5 + x) * 0.15);
@@ -1737,7 +1742,15 @@
           Sound.toggle(k);
           soundButtons();
           e.currentTarget?.blur();
-        } })));
+        } })),
+        // mode léger : moins de résolution et moins d'effets, pour les PC qui rament
+        el("button", { class: "sound-btn" + (Ink.quality.low ? "" : " off"), text: "⚡ Léger", title: "Mode léger : plus fluide sur les petits PC", onclick: (e) => {
+          Ink.quality.low = !Ink.quality.low;
+          resize();
+          soundButtons();
+          toast(Ink.quality.low ? "Mode léger activé : moins d'effets, plus de fluidité." : "Mode léger désactivé.");
+          e.currentTarget?.blur();
+        } }));
     }
   }
   soundButtons();

@@ -176,7 +176,7 @@
       const canvas = document.createElement("canvas");
       canvas.className = "game-canvas";
       root.append(canvas);
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d", { alpha: false }); // opaque : plus rapide à afficher
       const shadowC = layer(1, () => {});
       const sg = shadowC.getContext("2d");
       const hatchC = layer(1, () => {});
@@ -185,7 +185,7 @@
 
       let vw = 0, vh = 0, dpr = 1, s = 1, ox = 0, oy = 0;
       function resize() {
-        dpr = window.devicePixelRatio || 1;
+        dpr = Ink.quality.dpr();
         vw = root.clientWidth;
         vh = root.clientHeight;
         canvas.width = Math.round(vw * dpr);
@@ -365,11 +365,9 @@
       }
 
       function drawCoffin(x, y, time) {
-        const glow = ctx.createRadialGradient(x, y, 4, x, y, 60);
-        glow.addColorStop(0, `rgba(233,176,74,${0.35 + Math.sin(time * 3) * 0.1})`);
-        glow.addColorStop(1, "rgba(233,176,74,0)");
-        ctx.fillStyle = glow;
-        ctx.fillRect(x - 60, y - 60, 120, 120);
+        ctx.globalAlpha = 0.8 + Math.sin(time * 3) * 0.2;
+        Ink.halo(ctx, "rgba(233,176,74,0.4)", x, y, 60);
+        ctx.globalAlpha = 1;
         const pts = [[x, y - 32], [x + 14, y - 20], [x + 11, y + 30], [x - 11, y + 30], [x - 14, y - 20]];
         Ink.fill(ctx, pts, Ink.rng(5), "#3a2228", 0.6);
         Ink.stroke(ctx, pts, Ink.rng(6), { w: 2, closed: true, passes: 1, amp: 0.8 });
@@ -454,7 +452,6 @@
         hg.drawImage(shadowC, 0, 0);
         ctx.save();
         ctx.globalAlpha = 0.22;
-        ctx.filter = "blur(0.6px)";
         ctx.drawImage(shadowC, 0, 0);
         ctx.restore();
         ctx.save();

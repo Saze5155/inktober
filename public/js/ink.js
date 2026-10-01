@@ -4,6 +4,43 @@ window.Ink = (() => {
   const PAPER = "#efe5d0";
   const TAU = Math.PI * 2;
 
+  // Qualité d'affichage : on limite la résolution sur les écrans très denses (gros gain de fluidité),
+  // et le « mode léger » la baisse encore et coupe les effets coûteux.
+  let low = false, explicit = false;
+  try {
+    const v = localStorage.getItem("enxor.low");
+    explicit = v !== null;
+    low = v === "1";
+  } catch { /* rien */ }
+  const quality = {
+    get low() { return low; },
+    set low(v) { low = v; explicit = true; try { localStorage.setItem("enxor.low", v ? "1" : "0"); } catch { /* rien */ } },
+    // choix fait par la personne (sinon le jeu peut activer le mode léger tout seul s'il rame)
+    get explicit() { return explicit; },
+    auto() { low = true; },
+    // en mode léger, on dessine en 75 % de la résolution de l'écran (l'image est agrandie) : beaucoup plus fluide
+    dpr: () => (low ? 0.75 : Math.min(window.devicePixelRatio || 1, 1.25)),
+  };
+
+  // dégradés radiaux pré-dessinés (bien plus rapides que d'en recréer un à chaque image)
+  const glowCache = new Map();
+  function glow(color) {
+    let c = glowCache.get(color);
+    if (c) return c;
+    c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const g = c.getContext("2d");
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, color);
+    gr.addColorStop(1, color.replace(/[\d.]+\)$/, "0)"));
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 128, 128);
+    glowCache.set(color, c);
+    return c;
+  }
+  // dessine un halo de rayon r centré en (x, y)
+  const halo = (ctx, color, x, y, r) => ctx.drawImage(glow(color), x - r, y - r, r * 2, r * 2);
+
   function rng(seed) {
     let a = seed >>> 0;
     return () => {
@@ -793,7 +830,7 @@ window.Ink = (() => {
   }
 
   return {
-    INK, PAPER, rng, hash, jitter, trace, stroke, fill, hatch, ellipse, rect, shadow,
+    INK, PAPER, quality, glow, halo, rng, hash, jitter, trace, stroke, fill, hatch, ellipse, rect, shadow,
     grain, splat, crack, grass, stone, ruin, lamp, deadTree, enxor, emote, heart, word, label, bubble,
   };
 })();

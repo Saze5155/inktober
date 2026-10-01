@@ -23,7 +23,7 @@ window.Sound = (() => {
     comp.connect(ac.destination);
 
     const reverb = ac.createConvolver();
-    reverb.buffer = impulse(3, 2.4);
+    reverb.buffer = impulse(1.8, 2.6); // écho plus court : moins de travail pour le processeur
     const wet = ac.createGain();
     wet.gain.value = 0.55;
     reverb.connect(wet);
