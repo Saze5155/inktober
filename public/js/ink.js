@@ -754,13 +754,14 @@ window.Ink = (() => {
     ctx.stroke();
   }
 
-  function word(ctx, text, x, y, size, color, weight = 800) {
+  // outline : couleur du contour (clair sur le papier par défaut, à passer en sombre sur fond sombre)
+  function word(ctx, text, x, y, size, color, weight = 800, outline = PAPER) {
     ctx.font = `${weight} ${size}px "Barlow Semi Condensed", sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
     ctx.lineWidth = 4;
-    ctx.strokeStyle = PAPER;
+    ctx.strokeStyle = outline;
     ctx.strokeText(text, x, y);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);

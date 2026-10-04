@@ -217,11 +217,11 @@
             ctx.fillRect(AW / 2 - w, o.y - 24, w * 2, 48);
             ctx.strokeStyle = "#8fd18a"; ctx.lineWidth = 3; ctx.setLineDash([10, 8]);
             ctx.strokeRect(AW / 2 - w, o.y - 24, w * 2, 48); ctx.setLineDash([]);
-            Ink.word(ctx, `→ ${o.name} ←`, AW / 2, o.y, 22, "#8fd18a", 800);
+            Ink.word(ctx, `→ ${o.name} ←`, AW / 2, o.y, 22, "#8fd18a", 800, "#1b1b1b");
           }
         }
         drawCell(cell.x, cell.y, t);
-        for (const p of pops) { ctx.globalAlpha = Math.min(1, p.life * 2); Ink.word(ctx, p.text, p.x, p.y, 20, p.color, 800); ctx.globalAlpha = 1; }
+        for (const p of pops) { ctx.globalAlpha = Math.min(1, p.life * 2); Ink.word(ctx, p.text, p.x, p.y, 20, p.color, 800, "#1b1b1b"); ctx.globalAlpha = 1; }
         if (flash) { ctx.fillStyle = `rgba(179,38,30,${flash})`; ctx.fillRect(0, 0, AW, AH); }
 
         // le cœur qui bat (en haut à droite) et l'indicateur de rythme
@@ -232,7 +232,7 @@
         const k = 1 - (nextBeat - time) / (60 / bpm());
         ctx.strokeStyle = "#efe5d0"; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(960, 130, 64, -Math.PI / 2, -Math.PI / 2 + k * TAU); ctx.stroke();
-        Ink.word(ctx, "ESPACE au battement", 960, 220, 15, PAPER, 600);
+        Ink.word(ctx, "ESPACE au battement", 960, 220, 16, PAPER, 700, "#1b1b1b");
 
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.fillStyle = "rgba(27,27,27,.85)";

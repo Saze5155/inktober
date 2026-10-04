@@ -331,7 +331,7 @@
           }
           ctx.fill();
         }
-        Ink.word(ctx, st.mode === "show" ? "Regarde…" : `À toi : étoile ${st.idx + 1}/${st.seq.length}`, AW / 2, 250, 22, "#efe5d0", 700);
+        Ink.word(ctx, st.mode === "show" ? "Regarde…" : `À toi : étoile ${st.idx + 1}/${st.seq.length}`, AW / 2, 250, 22, "#efe5d0", 700, "#151a35");
       },
       score: (st) => 600 - st.time * 3 - st.hits * 70,
     },

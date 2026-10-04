@@ -11,7 +11,7 @@
     { id: "plume", name: "Plume de Grifix", color: "#efe5d0" },
     { id: "sel", name: "Sel de Cendre", color: "#9aa0a6" },
     { id: "encre", name: "Goutte d'encre", color: "#3e4a8a" },
-    { id: "champi", name: "Champignon de Verdanya", color: "#d36b9c" },
+    { id: "champi", name: "Champignon", color: "#d36b9c" },
   ];
   const POTIONS = ["Potion de mémoire", "Élixir d'ombre", "Philtre de Tisseur"];
 
@@ -26,7 +26,7 @@
       ctx.fillStyle = "#e9b04a"; ctx.beginPath(); ctx.arc(0, 0, 7, 0, TAU); ctx.fill();
       ctx.fillStyle = INK; ctx.beginPath(); ctx.ellipse(0, 0, 2, 6, 0, 0, TAU); ctx.fill();
     } else if (id === "racine") {
-      ctx.strokeStyle = "#3b2a1c"; ctx.lineWidth = 5; ctx.lineCap = "round";
+      ctx.strokeStyle = "#b07a46"; ctx.lineWidth = 5; ctx.lineCap = "round";
       ctx.beginPath(); ctx.moveTo(0, -14); ctx.quadraticCurveTo(-4, 0, 2, 14); ctx.moveTo(0, -2); ctx.lineTo(-10, 8); ctx.moveTo(1, 4); ctx.lineTo(10, 12); ctx.stroke();
     } else if (id === "plume") {
       ctx.fillStyle = PAPER; ctx.beginPath(); ctx.moveTo(0, 16); ctx.quadraticCurveTo(-12, 0, 0, -16); ctx.quadraticCurveTo(12, 0, 0, 16); ctx.fill(); ctx.stroke();
@@ -76,8 +76,9 @@
       resize();
       window.addEventListener("resize", resize);
 
-      const JARS = INGREDIENTS.map((ing, i) => ({ ...ing, x: 110 + (i % 2) * 120, y: 200 + Math.floor(i / 2) * 140 }));
-      const BREW = { x: 540, y: 600, w: 180, h: 50 };
+      const JARS = INGREDIENTS.map((ing, i) => ({ ...ing, x: 100 + (i % 2) * 170, y: 200 + Math.floor(i / 2) * 140 }));
+      const SLOT_Y = 584;
+      const BREW = { x: 540, y: 618, w: 180, h: 46 };
       let round = 0, code, guess, history, results = [], state = "play", stateAt = 0, say = "", bubbles = [], brewColor = "#2b2731";
       const secs = () => performance.now() / 1000;
 
@@ -145,9 +146,9 @@
         const x = (e.clientX - b.left - ox) / s, y = (e.clientY - b.top - oy) / s;
         if (state !== "play") return secs() - stateAt > 0.8 && next();
         JARS.forEach((j, i) => { if (Math.hypot(x - j.x, y - j.y) < 50) add(i); });
-        if (Math.abs(x - BREW.x) < BREW.w / 2 && Math.abs(y - BREW.y) < BREW.h / 2) brew();
+        if (Math.abs(x - BREW.x) < BREW.w / 2 && Math.abs(y - (BREW.y + 30)) < BREW.h / 2) brew();
         // cliquer sur une place remplie la vide
-        for (let i = 0; i < SLOTS; i++) if (Math.hypot(x - (420 + i * 80), y - 520) < 32 && guess[i]) { guess.splice(i, 1); Sound.play("click"); }
+        for (let i = 0; i < SLOTS; i++) if (Math.hypot(x - (420 + i * 80), y - SLOT_Y) < 32 && guess[i]) { guess.splice(i, 1); Sound.play("click"); }
       });
 
       function finish() {
@@ -174,14 +175,14 @@
 
         // étagère de bocaux
         ctx.fillStyle = "#3b2a1c";
-        for (let r = 0; r < 3; r++) ctx.fillRect(40, 240 + r * 140, 260, 10);
+        for (let r = 0; r < 3; r++) ctx.fillRect(30, 240 + r * 140, 320, 10);
         JARS.forEach((j, i) => {
           ctx.fillStyle = "rgba(220,230,240,.12)"; ctx.strokeStyle = PAPER; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.roundRect(j.x - 36, j.y - 38, 72, 78, 12); ctx.fill(); ctx.stroke();
           ctx.fillStyle = "#6b4426"; ctx.fillRect(j.x - 26, j.y - 48, 52, 12);
           drawIngredient(ctx, j.id, j.x, j.y, 1.3);
           ctx.globalAlpha = guess.includes(j.id) ? 0.35 : 1;
-          ctx.font = `700 13px "Barlow Semi Condensed", sans-serif`; ctx.fillStyle = PAPER; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.font = `700 14px "Barlow Semi Condensed", sans-serif`; ctx.fillStyle = PAPER; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText(`${i + 1} · ${j.name}`, j.x, j.y + 52);
           ctx.globalAlpha = 1;
         });
@@ -194,7 +195,7 @@
         ctx.strokeStyle = PAPER; ctx.lineWidth = 2; ctx.stroke();
         for (const fl of [-50, 0, 50]) {
           ctx.fillStyle = "#e0662f";
-          ctx.beginPath(); ctx.moveTo(540 + fl - 12, 560); ctx.quadraticCurveTo(540 + fl, 525 + Math.sin(t * 9 + fl) * 6, 540 + fl + 12, 560); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(540 + fl - 10, 540); ctx.quadraticCurveTo(540 + fl, 512 + Math.sin(t * 9 + fl) * 5, 540 + fl + 10, 540); ctx.fill();
         }
         for (const b of bubbles) {
           b.life -= 1 / 60; b.y += b.vy / 60;
@@ -207,7 +208,7 @@
 
         // les 4 places de la recette en cours
         for (let i = 0; i < SLOTS; i++) {
-          const x = 420 + i * 80, y = 520;
+          const x = 420 + i * 80, y = SLOT_Y - 36;
           ctx.fillStyle = "rgba(239,229,208,.08)"; ctx.strokeStyle = "rgba(239,229,208,.5)"; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(x, y + 36, 28, 0, TAU); ctx.fill(); ctx.stroke();
           if (guess[i]) drawIngredient(ctx, guess[i], x, y + 36, 1);
@@ -221,7 +222,7 @@
         // historique des essais
         ctx.fillStyle = "rgba(27,27,27,.7)";
         ctx.beginPath(); ctx.roundRect(760, 110, 320, 540, 14); ctx.fill();
-        Ink.word(ctx, `Essais ${history.length} / ${MAX_TRIES}`, 920, 135, 18, "#e9b04a", 700);
+        Ink.word(ctx, `Essais ${history.length} / ${MAX_TRIES}`, 920, 135, 18, "#e9b04a", 700, "#1b1b1b");
         history.forEach((h, k) => {
           const y = 180 + k * 58;
           h.guess.forEach((id, i) => drawIngredient(ctx, id, 800 + i * 44, y, 0.8));
@@ -234,15 +235,18 @@
         // Encrine qui commente
         Ink.enxor(ctx, 620, 250, t, { seed: 6, color: "#7d5ba6", wear: { head: "plume" }, face: -1 });
         Ink.label(ctx, "Encrine", 620, 190, { size: 14, color: "#7d5ba6" });
-        if (say) Ink.bubble(ctx, say, 560, 175);
-        Ink.word(ctx, `${POTIONS[Math.min(round, RECIPES - 1)]} · recette ${Math.min(round + 1, RECIPES)} / ${RECIPES}`, 380, 60, 26, "#e9b04a", 800);
+        if (say && state === "play") Ink.bubble(ctx, say, 560, 175);
+        Ink.word(ctx, `${POTIONS[Math.min(round, RECIPES - 1)]} · recette ${Math.min(round + 1, RECIPES)} / ${RECIPES}`, 380, 60, 26, "#e9b04a", 800, "#1b1b1b");
 
         if (state !== "play") {
-          ctx.fillStyle = "rgba(27,27,27,.75)";
-          ctx.beginPath(); ctx.roundRect(340, 60 + 30, 400, 100, 14); ctx.fill();
-          Ink.word(ctx, state === "won" ? "Potion réussie !" : "La vraie recette :", 540, 115, 26, state === "won" ? "#e9b04a" : "#e4574b", 800);
-          code.forEach((id, i) => drawIngredient(ctx, id, 480 + i * 40, 155, 0.8));
-          if (secs() - stateAt > 0.8) Ink.word(ctx, "clic ou Entrée", 540, 182, 13, PAPER, 600);
+          // résultat de la recette : le mot d'Encrine, la vraie recette, puis « continuer »
+          ctx.fillStyle = "rgba(27,27,27,.9)";
+          ctx.beginPath(); ctx.roundRect(300, 90, 460, 150, 14); ctx.fill();
+          Ink.word(ctx, state === "won" ? "Potion réussie !" : "La vraie recette :", 530, 118, 26, state === "won" ? "#e9b04a" : "#e4574b", 800, "#1b1b1b");
+          ctx.font = `500 15px "Barlow Semi Condensed", sans-serif`; ctx.fillStyle = PAPER; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(say, 530, 150);
+          code.forEach((id, i) => drawIngredient(ctx, id, 470 + i * 40, 186, 0.8));
+          if (secs() - stateAt > 0.8) Ink.word(ctx, "clic ou Entrée pour continuer", 530, 220, 14, PAPER, 600, "#1b1b1b");
         }
       }
 
