@@ -24,7 +24,10 @@
   };
 
   // action spéciale du jour sur un autre Enxor (touche F), seulement le jour du vestige
-  const DAY_ACTIONS = { 1: { verb: "Mordre" }, 2: { verb: "Cracher du feu sur" }, 3: { verb: "Peindre" } };
+  const DAY_ACTIONS = {
+    1: { verb: "Mordre" }, 2: { verb: "Cracher du feu sur" }, 3: { verb: "Peindre" },
+    4: { verb: "Chausser de Crocs" }, 5: { verb: "Faire une transfusion à" }, 6: { verb: "Lancer une potion sur" },
+  };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
 
@@ -131,9 +134,12 @@
     });
     socket.on("fx", ({ type, from, to }) => {
       S.fx.push({ type, from, to, t: performance.now() / 1000 });
-      Sound.play({ bite: "bite", flame: "flame", paint: "splash" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
+      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
       const who = S.players.get(from)?.pseudo;
-      if (to === S.me?.id) toast({ bite: `${who} t'a mordu·e ! 🩸`, flame: `${who} t'a roussi·e ! 🔥`, paint: `${who} t'a repeint·e ! 🎨` }[type]);
+      if (to === S.me?.id) toast({
+        bite: `${who} t'a mordu·e ! 🩸`, flame: `${who} t'a roussi·e ! 🔥`, paint: `${who} t'a repeint·e ! 🎨`,
+        shoe: `${who} t'a mis des Crocs aux pieds ! 👟`, blood: `${who} t'a fait une transfusion ! 💉`, potion: `${who} t'a lancé une potion ! 🧪`,
+      }[type]);
     });
     socket.on("lg:state", (s) => Werewolf.onState(s));
     socket.on("lg:you", (y) => Werewolf.onYou(y));
@@ -861,6 +867,30 @@
         }
         ctx.globalAlpha = Math.max(0, 1 - age);
         Ink.word(ctx, "CROC !", b.x, b.y - 70 * scale - age * 20, 18, "#b3261e", 800);
+      } else if (f.type === "shoe" || f.type === "blood" || f.type === "potion") {
+        // une petite icône qui vole de l'un à l'autre, puis éclate
+        const k = Math.min(1, age * 2);
+        const x = a.x + (b.x - a.x) * k, y = a.y - 30 * scale + (b.y - a.y) * k - Math.sin(k * Math.PI) * 60;
+        ctx.globalAlpha = Math.max(0, 1.3 - age);
+        if (f.type === "shoe") {
+          ctx.fillStyle = "#e0662f"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.ellipse(x, y, 14, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        } else if (f.type === "blood") {
+          ctx.fillStyle = "#b3261e";
+          ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.quadraticCurveTo(x + 9, y + 2, x, y + 6); ctx.quadraticCurveTo(x - 9, y + 2, x, y - 12); ctx.fill();
+        } else {
+          ctx.fillStyle = "#7cd15a"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillRect(x - 3, y - 16, 6, 7);
+        }
+        if (k >= 1) {
+          const colors = { shoe: ["#e0662f", "#5bb3a0", "#d36b9c"], blood: ["#b3261e", "#8e1b2b"], potion: ["#7cd15a", "#b48be0", "#5bb3a0"] }[f.type];
+          for (let i = 0; i < 10; i++) {
+            const ang = (i / 10) * Math.PI * 2;
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.beginPath(); ctx.arc(b.x + Math.cos(ang) * (age * 40), b.y - 22 * scale + Math.sin(ang) * age * 28, 3, 0, Math.PI * 2); ctx.fill();
+          }
+        }
       } else if (f.type === "paint") {
         const colors = ["#e0662f", "#3e7cb1", "#5b8c5a", "#d36b9c", "#e9b04a", "#7d5ba6"];
         for (let i = 0; i < 12; i++) {

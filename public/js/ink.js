@@ -436,7 +436,14 @@ window.Ink = (() => {
   // ---------- Décorations (débloquées par les trophées) ----------
 
   function wearBack(ctx, item, cx, cy, t, face) {
-    if (item === "manteau") {
+    if (item === "coeur") {
+      const beat = 1 + Math.max(0, Math.sin(t * 7)) * 0.15;
+      ctx.save();
+      ctx.translate(cx - face * 16, cy - 2);
+      ctx.scale(beat, beat);
+      heart(ctx, 0, 0, 7, "#b3261e");
+      ctx.restore();
+    } else if (item === "manteau") {
       ctx.save();
       ctx.fillStyle = "rgba(20,18,30,.85)";
       ctx.strokeStyle = "rgba(110,170,255,.5)";
@@ -603,6 +610,20 @@ window.Ink = (() => {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+    } else if (item === "crocstete") {
+      ctx.fillStyle = "#5bb3a0";
+      ctx.beginPath();
+      ctx.moveTo(cx - 14, top + 2); ctx.lineTo(cx + 12, top + 2); ctx.quadraticCurveTo(cx + 18, top - 3, cx + 14, top - 8);
+      ctx.quadraticCurveTo(cx + 4, top - 14, cx - 6, top - 13); ctx.quadraticCurveTo(cx - 15, top - 10, cx - 14, top + 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK;
+      for (const [hx, hy] of [[2, -7], [7, -5], [11, -2]]) { ctx.beginPath(); ctx.arc(cx + hx, top + hy, 1.2, 0, TAU); ctx.fill(); }
+    } else if (item === "chapeau") {
+      ctx.fillStyle = "#3e4a8a";
+      ctx.beginPath(); ctx.ellipse(cx, top + 2, 19, 5, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - 11, top + 1); ctx.quadraticCurveTo(cx + face * 6, top - 20, cx + face * 14, top - 30); ctx.quadraticCurveTo(cx + 4, top - 12, cx + 11, top + 1); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#e9b04a";
+      ctx.beginPath(); ctx.arc(cx + face * 2, top - 10, 2.2, 0, TAU); ctx.fill();
     } else if (item === "girouette") {
       ctx.strokeStyle = INK;
       ctx.beginPath(); ctx.moveTo(cx, top + 2); ctx.lineTo(cx, top - 22); ctx.stroke();
@@ -663,6 +684,20 @@ window.Ink = (() => {
       if (item === "braises") {
         ctx.fillStyle = i % 2 ? "#e0662f" : "#e9b04a";
         ctx.beginPath(); ctx.arc(x, y, 2.4, 0, TAU); ctx.fill();
+      } else if (item === "jibbitz") {
+        // petits charms qui tournent autour
+        const a = t * 2 + (i / 5) * TAU;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = ["#e0662f", "#5bb3a0", "#d36b9c", "#e9b04a", "#7d5ba6"][i];
+        ctx.beginPath(); ctx.arc(cx + Math.cos(a) * 24, cy + 6 + Math.sin(a) * 9, 3, 0, TAU); ctx.fill();
+      } else if (item === "globules") {
+        ctx.fillStyle = "#b3261e";
+        ctx.beginPath(); ctx.ellipse(x, y, 4, 3, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = "#8e1b2b";
+        ctx.beginPath(); ctx.ellipse(x, y, 1.6, 1.2, 0, 0, TAU); ctx.fill();
+      } else if (item === "fiole") {
+        ctx.fillStyle = i % 2 ? "rgba(124,209,90,.85)" : "rgba(180,139,224,.85)";
+        ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, TAU); ctx.fill();
       } else if (item === "flamme") {
         ctx.fillStyle = i % 2 ? "#e9b04a" : "#fff1b0";
         ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.quadraticCurveTo(x + 4, y, x, y + 4); ctx.quadraticCurveTo(x - 4, y, x, y - 6); ctx.fill();

@@ -54,7 +54,12 @@ const quests = createQuests({
 });
 
 // Actions du jour : seulement le jour du vestige correspondant (mordre le jour du vampire…)
-const DAY_ACTIONS = { 1: { stat: "bites", fx: "bite" }, 2: { stat: "flames", fx: "flame" }, 3: { stat: "paints", fx: "paint" } };
+const DAY_ACTIONS = {
+  1: { stat: "bites", fx: "bite" }, 2: { stat: "flames", fx: "flame" }, 3: { stat: "paints", fx: "paint" },
+  4: { stat: "shoes", fx: "shoe" }, 5: { stat: "bloods", fx: "blood" }, 6: { stat: "potions", fx: "potion" },
+};
+// trophée « 3 étoiles » de chaque jeu du jour
+const STAR_TROPHIES = { 1: "enfantnuit", 2: "souffle", 3: "chromatique", 4: "glisse", 5: "rythme", 6: "alchimiste" };
 
 function findByPseudo(pseudo) {
   const key = pseudo.toLowerCase();
@@ -429,10 +434,8 @@ io.on("connection", (socket) => {
     g.stars = Math.max(g.stars, stars);
     g.plays++;
     p.games[day] = g;
-    if (day === 1 && stars === 3) trophies.award(p, "enfantnuit");
     if (day === 2) trophies.award(p, "cinqfreres");
-    if (day === 2 && stars === 3) trophies.award(p, "souffle");
-    if (day === 3 && stars === 3) trophies.award(p, "chromatique");
+    if (stars === 3 && STAR_TROPHIES[day]) trophies.award(p, STAR_TROPHIES[day]);
     store.save();
     io.emit("player:update", publicPlayer(p));
   });
