@@ -57,9 +57,13 @@ const quests = createQuests({
 const DAY_ACTIONS = {
   1: { stat: "bites", fx: "bite" }, 2: { stat: "flames", fx: "flame" }, 3: { stat: "paints", fx: "paint" },
   4: { stat: "shoes", fx: "shoe" }, 5: { stat: "bloods", fx: "blood" }, 6: { stat: "potions", fx: "potion" },
+  7: { stat: "feeds", fx: "food" }, 8: { stat: "kisses", fx: "kiss" }, 9: { stat: "flowers", fx: "flower" }, 10: { stat: "wishes", fx: "star" },
 };
 // trophée « 3 étoiles » de chaque jeu du jour
-const STAR_TROPHIES = { 1: "enfantnuit", 2: "souffle", 3: "chromatique", 4: "glisse", 5: "rythme", 6: "alchimiste" };
+const STAR_TROPHIES = {
+  1: "enfantnuit", 2: "souffle", 3: "chromatique", 4: "glisse", 5: "rythme", 6: "alchimiste",
+  7: "festin", 8: "charmeur", 9: "jardinier", 10: "astronome",
+};
 
 function findByPseudo(pseudo) {
   const key = pseudo.toLowerCase();

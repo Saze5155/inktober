@@ -436,7 +436,44 @@ window.Ink = (() => {
   // ---------- Décorations (débloquées par les trophées) ----------
 
   function wearBack(ctx, item, cx, cy, t, face) {
-    if (item === "coeur") {
+    if (item === "lierre") {
+      // lianes qui pendent derrière, avec des feuilles qui frémissent
+      ctx.save();
+      ctx.strokeStyle = "#3f6b3a";
+      ctx.lineWidth = 2;
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + s * 12, cy - 12);
+        ctx.quadraticCurveTo(cx + s * 26, cy + 4 + Math.sin(t * 2 + s) * 2, cx + s * 18, cy + 26);
+        ctx.stroke();
+        ctx.fillStyle = "#5b8c5a";
+        for (let k = 0; k < 3; k++) {
+          const px = cx + s * (16 + k * 3), py = cy - 4 + k * 10;
+          ctx.beginPath(); ctx.ellipse(px + s * 4, py, 5, 2.6, s * (0.6 + Math.sin(t * 3 + k) * 0.2), 0, TAU); ctx.fill();
+        }
+      }
+      ctx.restore();
+    } else if (item === "voielactee") {
+      ctx.save();
+      ctx.fillStyle = "#1c2350";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      const fl = Math.sin(t * 3) * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 14, cy - 8);
+      ctx.quadraticCurveTo(cx - 30 - fl, cy + 10, cx - 24, cy + 28);
+      ctx.lineTo(cx + 24, cy + 28);
+      ctx.quadraticCurveTo(cx + 30 + fl, cy + 10, cx + 14, cy - 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      for (let k = 0; k < 7; k++) {
+        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 3 + k * 1.7);
+        ctx.fillStyle = "#fff6d0";
+        ctx.beginPath(); ctx.arc(cx - 18 + ((k * 37) % 36), cy + 4 + ((k * 23) % 22), 1.3, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    } else if (item === "coeur") {
       const beat = 1 + Math.max(0, Math.sin(t * 7)) * 0.15;
       ctx.save();
       ctx.translate(cx - face * 16, cy - 2);
@@ -515,6 +552,13 @@ window.Ink = (() => {
   }
 
   function wearFace(ctx, item, cx, cy, face) {
+    if (item === "rougir") {
+      ctx.save();
+      ctx.fillStyle = "rgba(230,110,140,.75)";
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + s * 9 + face * 3, cy + 3, 4.5, 2.6, 0, 0, TAU); ctx.fill(); }
+      ctx.restore();
+      return;
+    }
     if (item !== "lunettes" && item !== "masque") return;
     ctx.save();
     ctx.strokeStyle = INK;
@@ -624,6 +668,29 @@ window.Ink = (() => {
       ctx.beginPath(); ctx.moveTo(cx - 11, top + 1); ctx.quadraticCurveTo(cx + face * 6, top - 20, cx + face * 14, top - 30); ctx.quadraticCurveTo(cx + 4, top - 12, cx + 11, top + 1); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#e9b04a";
       ctx.beginPath(); ctx.arc(cx + face * 2, top - 10, 2.2, 0, TAU); ctx.fill();
+    } else if (item === "baguettes") {
+      // chignon de riz piqué de deux baguettes
+      ctx.fillStyle = "#f2ead8";
+      ctx.beginPath(); ctx.arc(cx, top - 3, 8, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "#7a1426";
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(cx - 14, top - 14); ctx.lineTo(cx + 12, top + 2); ctx.moveTo(cx - 10, top - 17); ctx.lineTo(cx + 15, top - 1); ctx.stroke();
+    } else if (item === "fleur") {
+      ctx.save();
+      ctx.translate(cx + face * 7, top - 2);
+      ctx.rotate(Math.sin(t * 1.5) * 0.15);
+      ctx.fillStyle = "#f2c1cf";
+      for (let k = 0; k < 5; k++) { const a = (k / 5) * TAU; ctx.beginPath(); ctx.ellipse(Math.cos(a) * 6, Math.sin(a) * 6, 5, 3.4, a, 0, TAU); ctx.fill(); ctx.stroke(); }
+      ctx.fillStyle = "#e9b04a";
+      ctx.beginPath(); ctx.arc(0, 0, 3.4, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    } else if (item === "lune") {
+      ctx.save();
+      ctx.translate(cx, top - 12 + Math.sin(t * 2) * 2);
+      halo(ctx, "rgba(255,241,176,.5)", 0, 0, 16);
+      ctx.fillStyle = "#fff1b0";
+      ctx.beginPath(); ctx.arc(0, 0, 9, Math.PI * 0.35, Math.PI * 1.65, false); ctx.arc(4, 0, 8, Math.PI * 1.5, Math.PI * 0.5, true); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
     } else if (item === "girouette") {
       ctx.strokeStyle = INK;
       ctx.beginPath(); ctx.moveTo(cx, top + 2); ctx.lineTo(cx, top - 22); ctx.stroke();
@@ -698,6 +765,13 @@ window.Ink = (() => {
       } else if (item === "fiole") {
         ctx.fillStyle = i % 2 ? "rgba(124,209,90,.85)" : "rgba(180,139,224,.85)";
         ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, TAU); ctx.fill();
+      } else if (item === "miettes") {
+        ctx.fillStyle = "#f2ead8";
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.ellipse(x, y, 2.6, 1.6, i + t, 0, TAU); ctx.fill(); ctx.stroke();
+      } else if (item === "coeurs") {
+        heart(ctx, x, y, 3.5, i % 2 ? "#d36b9c" : "#b3261e");
       } else if (item === "flamme") {
         ctx.fillStyle = i % 2 ? "#e9b04a" : "#fff1b0";
         ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.quadraticCurveTo(x + 4, y, x, y + 4); ctx.quadraticCurveTo(x - 4, y, x, y - 6); ctx.fill();

@@ -27,6 +27,7 @@
   const DAY_ACTIONS = {
     1: { verb: "Mordre" }, 2: { verb: "Cracher du feu sur" }, 3: { verb: "Peindre" },
     4: { verb: "Chausser de Crocs" }, 5: { verb: "Faire une transfusion à" }, 6: { verb: "Lancer une potion sur" },
+    7: { verb: "Offrir un onigiri à" }, 8: { verb: "Envoyer un bisou à" }, 9: { verb: "Faire pousser une fleur sur" }, 10: { verb: "Lancer une étoile filante sur" },
   };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
@@ -134,11 +135,12 @@
     });
     socket.on("fx", ({ type, from, to }) => {
       S.fx.push({ type, from, to, t: performance.now() / 1000 });
-      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
+      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash", food: "bite", kiss: "coeur", flower: "chat", star: "firework" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
       const who = S.players.get(from)?.pseudo;
       if (to === S.me?.id) toast({
         bite: `${who} t'a mordu·e ! 🩸`, flame: `${who} t'a roussi·e ! 🔥`, paint: `${who} t'a repeint·e ! 🎨`,
         shoe: `${who} t'a mis des Crocs aux pieds ! 👟`, blood: `${who} t'a fait une transfusion ! 💉`, potion: `${who} t'a lancé une potion ! 🧪`,
+        food: `${who} t'a offert un onigiri ! 🍙`, kiss: `${who} t'a envoyé un bisou ! 💋`, flower: `${who} t'a fait pousser une fleur sur la tête ! 🌸`, star: `${who} t'a lancé une étoile filante ! Fais un vœu ✨`,
       }[type]);
     });
     socket.on("lg:state", (s) => Werewolf.onState(s));
@@ -867,7 +869,7 @@
         }
         ctx.globalAlpha = Math.max(0, 1 - age);
         Ink.word(ctx, "CROC !", b.x, b.y - 70 * scale - age * 20, 18, "#b3261e", 800);
-      } else if (f.type === "shoe" || f.type === "blood" || f.type === "potion") {
+      } else if (["shoe", "blood", "potion", "food", "kiss", "flower", "star"].includes(f.type)) {
         // une petite icône qui vole de l'un à l'autre, puis éclate
         const k = Math.min(1, age * 2);
         const x = a.x + (b.x - a.x) * k, y = a.y - 30 * scale + (b.y - a.y) * k - Math.sin(k * Math.PI) * 60;
@@ -878,13 +880,32 @@
         } else if (f.type === "blood") {
           ctx.fillStyle = "#b3261e";
           ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.quadraticCurveTo(x + 9, y + 2, x, y + 6); ctx.quadraticCurveTo(x - 9, y + 2, x, y - 12); ctx.fill();
+        } else if (f.type === "food") {
+          // onigiri : triangle de riz avec sa feuille d'algue
+          ctx.fillStyle = "#f2ead8"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(x, y - 11); ctx.lineTo(x + 11, y + 8); ctx.lineTo(x - 11, y + 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "#2f4a3a"; ctx.fillRect(x - 5, y + 1, 10, 7);
+        } else if (f.type === "kiss") {
+          Ink.heart(ctx, x, y, 9, "#d36b9c");
+        } else if (f.type === "flower") {
+          for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2 + age * 4; ctx.fillStyle = "#f2c1cf"; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 5, 0, Math.PI * 2); ctx.fill(); }
+          ctx.fillStyle = "#e9b04a"; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+        } else if (f.type === "star") {
+          Ink.halo(ctx, "rgba(255,241,176,1)", x, y, 18);
+          ctx.fillStyle = "#fff6d0";
+          ctx.beginPath();
+          for (let p = 0; p < 10; p++) { const a = -Math.PI / 2 + (p * Math.PI) / 5, rr = p % 2 ? 4 : 10; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+          ctx.fill();
         } else {
           ctx.fillStyle = "#7cd15a"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
           ctx.fillRect(x - 3, y - 16, 6, 7);
         }
         if (k >= 1) {
-          const colors = { shoe: ["#e0662f", "#5bb3a0", "#d36b9c"], blood: ["#b3261e", "#8e1b2b"], potion: ["#7cd15a", "#b48be0", "#5bb3a0"] }[f.type];
+          const colors = {
+            shoe: ["#e0662f", "#5bb3a0", "#d36b9c"], blood: ["#b3261e", "#8e1b2b"], potion: ["#7cd15a", "#b48be0", "#5bb3a0"],
+            food: ["#f2ead8", "#2f4a3a"], kiss: ["#d36b9c", "#f2c1cf", "#b3261e"], flower: ["#f2c1cf", "#7cd15a", "#e9b04a"], star: ["#fff6d0", "#e9b04a", "#8fb8ff"],
+          }[f.type];
           for (let i = 0; i < 10; i++) {
             const ang = (i / 10) * Math.PI * 2;
             ctx.fillStyle = colors[i % colors.length];
