@@ -436,7 +436,21 @@ window.Ink = (() => {
   // ---------- Décorations (débloquées par les trophées) ----------
 
   function wearBack(ctx, item, cx, cy, t, face) {
-    if (item === "lierre") {
+    if (item === "lanterne") {
+      // une lanterne au bout d'une perche, qui se balance
+      ctx.save();
+      ctx.strokeStyle = "#6b4426"; ctx.lineWidth = 2.5;
+      const tx = cx - face * 26, ty = cy - 30, sw = Math.sin(t * 2.5) * 0.25;
+      ctx.beginPath(); ctx.moveTo(cx - face * 8, cy + 14); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.translate(tx, ty); ctx.rotate(sw);
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 6); ctx.stroke();
+      halo(ctx, "rgba(255,210,120,.6)", 0, 13, 18);
+      ctx.fillStyle = "#ffd678"; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.roundRect(-5, 6, 10, 13, 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#3b3440"; ctx.fillRect(-6, 4, 12, 3); ctx.fillRect(-6, 18, 12, 3);
+      ctx.restore();
+    } else if (item === "lierre") {
       // lianes qui pendent derrière, avec des feuilles qui frémissent
       ctx.save();
       ctx.strokeStyle = "#3f6b3a";
@@ -552,6 +566,17 @@ window.Ink = (() => {
   }
 
   function wearFace(ctx, item, cx, cy, face) {
+    if (item === "monocle") {
+      ctx.save();
+      ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 1.8;
+      ctx.fillStyle = "rgba(200,230,255,.3)";
+      const mx = cx + 6 + face * 2.5, my = cy - 4;
+      ctx.beginPath(); ctx.arc(mx, my, 6, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(mx + 4, my + 5); ctx.quadraticCurveTo(mx + 8, my + 14, mx + 3, my + 20); ctx.stroke();
+      ctx.restore();
+      return;
+    }
     if (item === "rougir") {
       ctx.save();
       ctx.fillStyle = "rgba(230,110,140,.75)";
@@ -668,6 +693,17 @@ window.Ink = (() => {
       ctx.beginPath(); ctx.moveTo(cx - 11, top + 1); ctx.quadraticCurveTo(cx + face * 6, top - 20, cx + face * 14, top - 30); ctx.quadraticCurveTo(cx + 4, top - 12, cx + 11, top + 1); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#e9b04a";
       ctx.beginPath(); ctx.arc(cx + face * 2, top - 10, 2.2, 0, TAU); ctx.fill();
+    } else if (item === "crayon") {
+      ctx.save();
+      ctx.translate(cx - face * 14, top + 6);
+      ctx.rotate(-face * 0.9);
+      ctx.fillStyle = "#e9b04a";
+      ctx.fillRect(-3, -16, 6, 22); ctx.strokeRect(-3, -16, 6, 22);
+      ctx.fillStyle = "#f2c1cf"; ctx.fillRect(-3, 6, 6, 4); ctx.strokeRect(-3, 6, 6, 4);
+      ctx.fillStyle = "#e8d2a8";
+      ctx.beginPath(); ctx.moveTo(-3, -16); ctx.lineTo(0, -24); ctx.lineTo(3, -16); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(-1, -21); ctx.lineTo(0, -24); ctx.lineTo(1, -21); ctx.fill();
+      ctx.restore();
     } else if (item === "baguettes") {
       // chignon de riz piqué de deux baguettes
       ctx.fillStyle = "#f2ead8";
@@ -765,6 +801,12 @@ window.Ink = (() => {
       } else if (item === "fiole") {
         ctx.fillStyle = i % 2 ? "rgba(124,209,90,.85)" : "rgba(180,139,224,.85)";
         ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, TAU); ctx.fill();
+      } else if (item === "yeuxombre") {
+        // des paires d'yeux qui s'ouvrent et se ferment autour, dans le noir
+        const a = (i / 5) * TAU + t * 0.4, ex = cx + Math.cos(a) * 28, ey = cy + Math.sin(a) * 14;
+        ctx.globalAlpha = Math.max(0, Math.sin(t * 1.3 + i * 1.7));
+        ctx.fillStyle = "#ffd84a";
+        for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(ex + s * 3, ey, 1.6, 2.2, 0, 0, TAU); ctx.fill(); }
       } else if (item === "miettes") {
         ctx.fillStyle = "#f2ead8";
         ctx.strokeStyle = INK;

@@ -28,6 +28,7 @@
     1: { verb: "Mordre" }, 2: { verb: "Cracher du feu sur" }, 3: { verb: "Peindre" },
     4: { verb: "Chausser de Crocs" }, 5: { verb: "Faire une transfusion à" }, 6: { verb: "Lancer une potion sur" },
     7: { verb: "Offrir un onigiri à" }, 8: { verb: "Envoyer un bisou à" }, 9: { verb: "Faire pousser une fleur sur" }, 10: { verb: "Lancer une étoile filante sur" },
+    11: { verb: "Faire peur à" }, 12: { verb: "Croquer le portrait de" },
   };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
@@ -135,12 +136,13 @@
     });
     socket.on("fx", ({ type, from, to }) => {
       S.fx.push({ type, from, to, t: performance.now() / 1000 });
-      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash", food: "bite", kiss: "coeur", flower: "chat", star: "firework" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
+      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash", food: "bite", kiss: "coeur", flower: "chat", star: "firework", boo: "surprise", portrait: "post" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
       const who = S.players.get(from)?.pseudo;
       if (to === S.me?.id) toast({
         bite: `${who} t'a mordu·e ! 🩸`, flame: `${who} t'a roussi·e ! 🔥`, paint: `${who} t'a repeint·e ! 🎨`,
         shoe: `${who} t'a mis des Crocs aux pieds ! 👟`, blood: `${who} t'a fait une transfusion ! 💉`, potion: `${who} t'a lancé une potion ! 🧪`,
         food: `${who} t'a offert un onigiri ! 🍙`, kiss: `${who} t'a envoyé un bisou ! 💋`, flower: `${who} t'a fait pousser une fleur sur la tête ! 🌸`, star: `${who} t'a lancé une étoile filante ! Fais un vœu ✨`,
+        boo: `${who} t'a fait peur ! BOUH ! 👻`, portrait: `${who} a croqué ton portrait ! 🖼️`,
       }[type]);
     });
     socket.on("lg:state", (s) => Werewolf.onState(s));
@@ -869,7 +871,18 @@
         }
         ctx.globalAlpha = Math.max(0, 1 - age);
         Ink.word(ctx, "CROC !", b.x, b.y - 70 * scale - age * 20, 18, "#b3261e", 800);
-      } else if (["shoe", "blood", "potion", "food", "kiss", "flower", "star"].includes(f.type)) {
+      } else if (f.type === "boo") {
+        // une ombre à grandes dents surgit derrière la cible
+        const k = Math.min(1, age * 3);
+        ctx.globalAlpha = Math.max(0, 1.2 - age);
+        ctx.fillStyle = "#14101c";
+        ctx.beginPath(); ctx.ellipse(b.x, b.y - 40 * scale, 34 * k, 44 * k, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#ffd84a";
+        for (const sx of [-1, 1]) { ctx.beginPath(); ctx.ellipse(b.x + sx * 12 * k, b.y - 50 * scale, 6 * k, 8 * k, 0, 0, Math.PI * 2); ctx.fill(); }
+        ctx.fillStyle = "#f2ead8";
+        for (let i = 0; i < 5; i++) { const x = b.x - 16 * k + i * 8 * k; ctx.beginPath(); ctx.moveTo(x, b.y - 28 * scale); ctx.lineTo(x + 4 * k, b.y - 20 * scale); ctx.lineTo(x + 8 * k, b.y - 28 * scale); ctx.fill(); }
+        Ink.word(ctx, "BOUH !", b.x, b.y - 100 * scale - age * 20, 20, "#7d5ba6", 800);
+      } else if (["shoe", "blood", "potion", "food", "kiss", "flower", "star", "portrait"].includes(f.type)) {
         // une petite icône qui vole de l'un à l'autre, puis éclate
         const k = Math.min(1, age * 2);
         const x = a.x + (b.x - a.x) * k, y = a.y - 30 * scale + (b.y - a.y) * k - Math.sin(k * Math.PI) * 60;
@@ -890,6 +903,11 @@
         } else if (f.type === "flower") {
           for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2 + age * 4; ctx.fillStyle = "#f2c1cf"; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 5, 0, Math.PI * 2); ctx.fill(); }
           ctx.fillStyle = "#e9b04a"; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+        } else if (f.type === "portrait") {
+          // un petit cadre avec un gribouillis d'Enxor
+          ctx.fillStyle = "#f2ead8"; ctx.strokeStyle = "#8a6a48"; ctx.lineWidth = 3;
+          ctx.fillRect(x - 11, y - 13, 22, 26); ctx.strokeRect(x - 11, y - 13, 22, 26);
+          ctx.fillStyle = Ink.INK; ctx.beginPath(); ctx.arc(x, y + 2, 6, 0, Math.PI * 2); ctx.fill();
         } else if (f.type === "star") {
           Ink.halo(ctx, "rgba(255,241,176,1)", x, y, 18);
           ctx.fillStyle = "#fff6d0";
@@ -904,7 +922,7 @@
         if (k >= 1) {
           const colors = {
             shoe: ["#e0662f", "#5bb3a0", "#d36b9c"], blood: ["#b3261e", "#8e1b2b"], potion: ["#7cd15a", "#b48be0", "#5bb3a0"],
-            food: ["#f2ead8", "#2f4a3a"], kiss: ["#d36b9c", "#f2c1cf", "#b3261e"], flower: ["#f2c1cf", "#7cd15a", "#e9b04a"], star: ["#fff6d0", "#e9b04a", "#8fb8ff"],
+            food: ["#f2ead8", "#2f4a3a"], kiss: ["#d36b9c", "#f2c1cf", "#b3261e"], flower: ["#f2c1cf", "#7cd15a", "#e9b04a"], star: ["#fff6d0", "#e9b04a", "#8fb8ff"], portrait: ["#f2ead8", "#8a6a48", "#e0662f"],
           }[f.type];
           for (let i = 0; i < 10; i++) {
             const ang = (i / 10) * Math.PI * 2;
