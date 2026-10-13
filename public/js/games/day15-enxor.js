@@ -9,9 +9,9 @@
   const LEVELS = [
     { src: [200, 100], cup: 850, budget: 900, walls: [], blots: [], sol: [[[140, 190], [800, 460]]] },
     { src: [900, 90], cup: 200, budget: 1000, walls: [], blots: [[430, 330, 160, 50]], sol: [[[960, 170], [400, 280]], [[400, 280], [230, 470]]] },
-    { src: [550, 80], cup: 550, budget: 600, walls: [[[420, 250], [550, 222]], [[550, 222], [680, 250]]], blots: [[300, 440, 130, 40], [670, 440, 130, 40]], sol: [[[380, 300], [500, 470]], [[720, 300], [600, 470]]] },
+    { src: [550, 80], cup: 550, budget: 600, walls: [[[430, 248], [550, 230]], [[550, 230], [670, 248]]], blots: [[290, 440, 120, 40], [690, 440, 120, 40]], sol: [[[330, 280], [500, 470]], [[770, 280], [600, 470]]] },
     { src: [150, 100], cup: 150, budget: 520, walls: [[[60, 260], [420, 330]]], blots: [[600, 560, 200, 40]], sol: [[[540, 370], [200, 470]]] },
-    { src: [950, 80], cup: 950, budget: 650, walls: [[[620, 120], [620, 330]]], blots: [[860, 250, 180, 40], [540, 520, 200, 40]], sol: [[[1000, 150], [780, 220]], [[720, 300], [900, 470]]] },
+    { src: [950, 80], cup: 950, budget: 650, walls: [[[620, 120], [620, 330]]], blots: [[860, 250, 180, 40], [540, 520, 200, 40]], sol: [[[1000, 150], [780, 220]], [[632, 335], [900, 480]]] },
   ];
   const CUP_TOP = 520, CUP_BOT = 612, CUP_HALF = 70;
 
@@ -68,6 +68,8 @@
         for (const c of cupSegs()) out.push(c);
         return out;
       }
+      // le goulot est tourné vers le moule (ou vers le milieu de la feuille s'il est juste dessous)
+      const pourSide = () => (L.cup > L.src[0] ? 1 : L.cup < L.src[0] ? -1 : L.src[0] > AW / 2 ? -1 : 1);
       const strokeLen = (st) => { let n = 0; for (let k = 1; k < st.length; k++) n += Math.hypot(st[k][0] - st[k - 1][0], st[k][1] - st[k - 1][1]); return n; };
 
       function pour() {
@@ -124,7 +126,7 @@
         const el = simT;
         // l'encrier se vide, une goutte après l'autre
         // l'encre part du côté du goulot, tourné vers le moule
-        const side = L.cup >= L.src[0] ? 1 : -1;
+        const side = pourSide();
         while (emitted < DROPS && el > emitted * 0.09) {
           drops.push({ x: L.src[0] + side * 22 + (Math.random() - 0.5) * 6, y: L.src[1] + 12, vx: side * (40 + Math.random() * 20), vy: 0 });
           emitted++;
@@ -192,7 +194,7 @@
         const score = results.reduce((a, r) => a + r.score, 0), born = results.filter((r) => r.score).length;
         api.finish({
           score,
-          stars: score >= 1700 ? 3 : score >= 1100 ? 2 : 1,
+          stars: score >= 1550 ? 3 : score >= 1100 ? 2 : 1,
           lines: [`${born} Enxors sont nés`, results.map((r, i) => `${i + 1} : ${r.score ? (r.attempts === 1 ? "du premier coup" : `${r.attempts} essais`) : "passé"}`).join(" · ")],
         });
       }
@@ -240,7 +242,7 @@
         // l'encrier humain, renversé
         const [sx, sy] = L.src;
         ctx.save();
-        ctx.translate(sx, sy); ctx.scale(L.cup >= sx ? 1 : -1, 1); ctx.rotate(phase === "draw" ? 0.2 : 1.1);
+        ctx.translate(sx, sy); ctx.scale(pourSide(), 1); ctx.rotate(phase === "draw" ? 0.2 : 1.1);
         ctx.fillStyle = "rgba(170,200,220,.8)"; ctx.strokeStyle = INK; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.roundRect(-26, -30, 52, 46, 8); ctx.fill(); ctx.stroke();
         ctx.fillStyle = "#3b3440"; ctx.fillRect(-14, -42, 28, 12); ctx.strokeRect(-14, -42, 28, 12);
@@ -260,7 +262,7 @@
           ctx.scale(1.4 + k * 1.2, 1.4 + k * 1.2);
           Ink.enxor(ctx, 0, 0, t, { seed: 15 + li, color: ["#e9b04a", "#5bb3a0", "#d36b9c", "#3e7cb1", "#e0662f"][li], face: 1, emote: k >= 1 ? "coeur" : "surprise", et: (secs() - phaseAt) % 2.4 });
           ctx.restore();
-          Ink.word(ctx, "Un Enxor est né !", AW / 2, 250, 40, "#3b3440", 800);
+          Ink.word(ctx, "Un Enxor est né !", AW / 2, 170, 40, "#3b3440", 800);
         }
         if (phase === "fail") Ink.word(ctx, "Pas assez d'encre dans le moule… redessine et reverse !", AW / 2, 250, 24, "#7a1426", 800);
 
