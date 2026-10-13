@@ -436,7 +436,29 @@ window.Ink = (() => {
   // ---------- Décorations (débloquées par les trophées) ----------
 
   function wearBack(ctx, item, cx, cy, t, face) {
-    if (item === "lanterne") {
+    if (item === "bouclier") {
+      ctx.save();
+      const bx = cx - face * 15, by = cy + 2;
+      ctx.fillStyle = "#7a1426"; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bx, by, 15, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#e9b04a";
+      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(bx, by); ctx.arc(bx, by, 15, k * Math.PI / 2, k * Math.PI / 2 + Math.PI / 4); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle = "#b9c2c9"; ctx.beginPath(); ctx.arc(bx, by, 4.5, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx, by, 15, 0, TAU); ctx.stroke();
+      ctx.restore();
+    } else if (item === "chaines") {
+      ctx.save();
+      ctx.strokeStyle = "#8a8478"; ctx.lineWidth = 1.6;
+      for (const s of [-1, 1]) {
+        for (let k = 0; k < 5; k++) {
+          const px = cx + s * (10 + k * 4), py = cy - 6 + k * 7 + Math.sin(t * 3 + k) * 1.5;
+          ctx.beginPath(); ctx.ellipse(px, py, 2.4, 3.6, s * 0.5 + k, 0, TAU); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = "#3b3532"; ctx.strokeStyle = INK; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(cx + 30, cy + 26 + Math.sin(t * 3) * 1.5, 5, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    } else if (item === "lanterne") {
       // une lanterne au bout d'une perche, qui se balance
       ctx.save();
       ctx.strokeStyle = "#6b4426"; ctx.lineWidth = 2.5;
@@ -693,6 +715,36 @@ window.Ink = (() => {
       ctx.beginPath(); ctx.moveTo(cx - 11, top + 1); ctx.quadraticCurveTo(cx + face * 6, top - 20, cx + face * 14, top - 30); ctx.quadraticCurveTo(cx + 4, top - 12, cx + 11, top + 1); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#e9b04a";
       ctx.beginPath(); ctx.arc(cx + face * 2, top - 10, 2.2, 0, TAU); ctx.fill();
+    } else if (item === "casque") {
+      ctx.fillStyle = "#8a9096";
+      ctx.beginPath(); ctx.moveTo(cx - 16, top + 6); ctx.quadraticCurveTo(cx - 16, top - 14, cx, top - 15); ctx.quadraticCurveTo(cx + 16, top - 14, cx + 16, top + 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#6b4426"; ctx.fillRect(cx - 16, top + 1, 32, 5); ctx.strokeRect(cx - 16, top + 1, 32, 5);
+      ctx.fillStyle = "#f2ead8";
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(cx + s * 14, top - 4); ctx.quadraticCurveTo(cx + s * 28, top - 8, cx + s * 26, top - 24); ctx.quadraticCurveTo(cx + s * 22, top - 12, cx + s * 12, top - 10); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    } else if (item === "leurre") {
+      const sw = Math.sin(t * 2) * 4;
+      ctx.beginPath(); ctx.moveTo(cx, top + 2); ctx.quadraticCurveTo(cx + face * 6, top - 26, cx + face * 16 + sw, top - 20); ctx.stroke();
+      halo(ctx, "rgba(150,240,220,.7)", cx + face * 16 + sw, top - 18, 14);
+      ctx.fillStyle = "#c8fff0"; ctx.beginPath(); ctx.arc(cx + face * 16 + sw, top - 18, 3.5, 0, TAU); ctx.fill();
+    } else if (item === "encrier") {
+      ctx.save(); ctx.translate(cx + face * 3, top - 2); ctx.rotate(face * 0.35);
+      ctx.fillStyle = "rgba(170,200,220,.75)";
+      ctx.beginPath(); ctx.roundRect(-9, -14, 18, 15, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#3b3440"; ctx.fillRect(-5, -19, 10, 5); ctx.strokeRect(-5, -19, 10, 5);
+      ctx.fillStyle = INK; ctx.fillRect(-8, -6, 16, 6);
+      ctx.restore();
+      ctx.fillStyle = INK;
+      for (let k = 0; k < 3; k++) { const dy = ((t * 18 + k * 9) % 22); ctx.beginPath(); ctx.arc(cx - 8 + k * 7, top + dy - 2, 1.6, 0, TAU); ctx.fill(); }
+    } else if (item === "drap") {
+      ctx.fillStyle = "rgba(239,229,208,.92)";
+      ctx.beginPath();
+      ctx.moveTo(cx - 20, top + 34);
+      ctx.quadraticCurveTo(cx - 22, top - 16, cx, top - 16);
+      ctx.quadraticCurveTo(cx + 22, top - 16, cx + 20, top + 34);
+      for (let k = 0; k < 5; k++) ctx.lineTo(cx + 20 - (k + 0.5) * 8, top + 34 + (k % 2 ? 0 : -6) + Math.sin(t * 4 + k) * 2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK;
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cx + s * 7 + face * 2.5, top + 4, 3, 4.5, 0, 0, TAU); ctx.fill(); }
     } else if (item === "crayon") {
       ctx.save();
       ctx.translate(cx - face * 14, top + 6);
@@ -801,6 +853,14 @@ window.Ink = (() => {
       } else if (item === "fiole") {
         ctx.fillStyle = i % 2 ? "rgba(124,209,90,.85)" : "rgba(180,139,224,.85)";
         ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, TAU); ctx.fill();
+      } else if (item === "plancton") {
+        halo(ctx, "rgba(120,240,210,.6)", x, y, 6);
+        ctx.fillStyle = "#c8fff0"; ctx.beginPath(); ctx.arc(x, y, 1.3, 0, TAU); ctx.fill();
+      } else if (item === "gouttes") {
+        // l'encre qui coule de l'Enxor
+        const yy = cy + 6 + p * 26, xx = cx - 12 + i * 6;
+        ctx.fillStyle = INK;
+        ctx.beginPath(); ctx.moveTo(xx, yy - 5); ctx.quadraticCurveTo(xx + 3.5, yy + 1, xx, yy + 3); ctx.quadraticCurveTo(xx - 3.5, yy + 1, xx, yy - 5); ctx.fill();
       } else if (item === "yeuxombre") {
         // des paires d'yeux qui s'ouvrent et se ferment autour, dans le noir
         const a = (i / 5) * TAU + t * 0.4, ex = cx + Math.cos(a) * 28, ey = cy + Math.sin(a) * 14;

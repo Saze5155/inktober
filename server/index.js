@@ -59,11 +59,12 @@ const DAY_ACTIONS = {
   4: { stat: "shoes", fx: "shoe" }, 5: { stat: "bloods", fx: "blood" }, 6: { stat: "potions", fx: "potion" },
   7: { stat: "feeds", fx: "food" }, 8: { stat: "kisses", fx: "kiss" }, 9: { stat: "flowers", fx: "flower" }, 10: { stat: "wishes", fx: "star" },
   11: { stat: "frights", fx: "boo" }, 12: { stat: "portraits", fx: "portrait" },
+  13: { stat: "duels", fx: "axe" }, 14: { stat: "bubbles", fx: "bubble" }, 15: { stat: "inks", fx: "ink" }, 16: { stat: "haunts", fx: "haunt" },
 };
 // trophée « 3 étoiles » de chaque jeu du jour
 const STAR_TROPHIES = {
   1: "enfantnuit", 2: "souffle", 3: "chromatique", 4: "glisse", 5: "rythme", 6: "alchimiste",
-  7: "festin", 8: "charmeur", 9: "jardinier", 10: "astronome", 11: "veilleur", 12: "enqueteur",
+  7: "festin", 8: "charmeur", 9: "jardinier", 10: "astronome", 11: "veilleur", 12: "enqueteur", 13: "berserker", 14: "abyssal", 15: "premieregoutte", 16: "survivant",
 };
 
 function findByPseudo(pseudo) {

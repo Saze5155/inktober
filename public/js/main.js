@@ -29,6 +29,7 @@
     4: { verb: "Chausser de Crocs" }, 5: { verb: "Faire une transfusion à" }, 6: { verb: "Lancer une potion sur" },
     7: { verb: "Offrir un onigiri à" }, 8: { verb: "Envoyer un bisou à" }, 9: { verb: "Faire pousser une fleur sur" }, 10: { verb: "Lancer une étoile filante sur" },
     11: { verb: "Faire peur à" }, 12: { verb: "Croquer le portrait de" },
+    13: { verb: "Lancer une hache en mousse sur" }, 14: { verb: "Envoyer une bulle d'air à" }, 15: { verb: "Éclabousser d'encre" }, 16: { verb: "Hanter" },
   };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
@@ -136,13 +137,14 @@
     });
     socket.on("fx", ({ type, from, to }) => {
       S.fx.push({ type, from, to, t: performance.now() / 1000 });
-      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash", food: "bite", kiss: "coeur", flower: "chat", star: "firework", boo: "surprise", portrait: "post" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
+      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash", food: "bite", kiss: "coeur", flower: "chat", star: "firework", boo: "surprise", portrait: "post", axe: "kick", bubble: "plouf", ink: "splash", haunt: "howl" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
       const who = S.players.get(from)?.pseudo;
       if (to === S.me?.id) toast({
         bite: `${who} t'a mordu·e ! 🩸`, flame: `${who} t'a roussi·e ! 🔥`, paint: `${who} t'a repeint·e ! 🎨`,
         shoe: `${who} t'a mis des Crocs aux pieds ! 👟`, blood: `${who} t'a fait une transfusion ! 💉`, potion: `${who} t'a lancé une potion ! 🧪`,
         food: `${who} t'a offert un onigiri ! 🍙`, kiss: `${who} t'a envoyé un bisou ! 💋`, flower: `${who} t'a fait pousser une fleur sur la tête ! 🌸`, star: `${who} t'a lancé une étoile filante ! Fais un vœu ✨`,
         boo: `${who} t'a fait peur ! BOUH ! 👻`, portrait: `${who} a croqué ton portrait ! 🖼️`,
+        axe: `${who} t'a lancé une hache… en mousse ! 🪓`, bubble: `${who} t'a envoyé une bulle d'air ! 🫧`, ink: `${who} t'a éclaboussé d'encre ! 🖋️`, haunt: `${who} te hante… 👻`,
       }[type]);
     });
     socket.on("lg:state", (s) => Werewolf.onState(s));
@@ -882,7 +884,7 @@
         ctx.fillStyle = "#f2ead8";
         for (let i = 0; i < 5; i++) { const x = b.x - 16 * k + i * 8 * k; ctx.beginPath(); ctx.moveTo(x, b.y - 28 * scale); ctx.lineTo(x + 4 * k, b.y - 20 * scale); ctx.lineTo(x + 8 * k, b.y - 28 * scale); ctx.fill(); }
         Ink.word(ctx, "BOUH !", b.x, b.y - 100 * scale - age * 20, 20, "#7d5ba6", 800);
-      } else if (["shoe", "blood", "potion", "food", "kiss", "flower", "star", "portrait"].includes(f.type)) {
+      } else if (["shoe", "blood", "potion", "food", "kiss", "flower", "star", "portrait", "axe", "bubble", "ink", "haunt"].includes(f.type)) {
         // une petite icône qui vole de l'un à l'autre, puis éclate
         const k = Math.min(1, age * 2);
         const x = a.x + (b.x - a.x) * k, y = a.y - 30 * scale + (b.y - a.y) * k - Math.sin(k * Math.PI) * 60;
@@ -903,6 +905,26 @@
         } else if (f.type === "flower") {
           for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2 + age * 4; ctx.fillStyle = "#f2c1cf"; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 5, 0, Math.PI * 2); ctx.fill(); }
           ctx.fillStyle = "#e9b04a"; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+        } else if (f.type === "axe") {
+          // une hache qui tourne en vol
+          ctx.save(); ctx.translate(x, y); ctx.rotate(age * 14);
+          ctx.strokeStyle = "#6b4426"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(0, -10); ctx.stroke();
+          ctx.fillStyle = "#b9c2c9"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(0, -10); ctx.quadraticCurveTo(12, -12, 11, -1); ctx.lineTo(0, -4); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.restore();
+        } else if (f.type === "bubble") {
+          ctx.strokeStyle = "rgba(140,200,230,.95)"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x - 3, y - 3, 3, 0, Math.PI * 2); ctx.stroke();
+        } else if (f.type === "ink") {
+          ctx.fillStyle = Ink.INK;
+          ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.quadraticCurveTo(x + 9, y + 2, x, y + 6); ctx.quadraticCurveTo(x - 9, y + 2, x, y - 12); ctx.fill();
+        } else if (f.type === "haunt") {
+          ctx.fillStyle = "rgba(239,229,208,.85)";
+          ctx.beginPath(); ctx.arc(x, y - 4, 10, Math.PI, 0); ctx.lineTo(x + 10, y + 10);
+          for (let i = 0; i < 4; i++) ctx.lineTo(x + 10 - (i + 0.5) * 5, y + (i % 2 ? 10 : 5));
+          ctx.lineTo(x - 10, y + 10); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = Ink.INK; ctx.beginPath(); ctx.arc(x - 3.5, y - 4, 1.8, 0, Math.PI * 2); ctx.arc(x + 3.5, y - 4, 1.8, 0, Math.PI * 2); ctx.fill();
         } else if (f.type === "portrait") {
           // un petit cadre avec un gribouillis d'Enxor
           ctx.fillStyle = "#f2ead8"; ctx.strokeStyle = "#8a6a48"; ctx.lineWidth = 3;
@@ -922,7 +944,7 @@
         if (k >= 1) {
           const colors = {
             shoe: ["#e0662f", "#5bb3a0", "#d36b9c"], blood: ["#b3261e", "#8e1b2b"], potion: ["#7cd15a", "#b48be0", "#5bb3a0"],
-            food: ["#f2ead8", "#2f4a3a"], kiss: ["#d36b9c", "#f2c1cf", "#b3261e"], flower: ["#f2c1cf", "#7cd15a", "#e9b04a"], star: ["#fff6d0", "#e9b04a", "#8fb8ff"], portrait: ["#f2ead8", "#8a6a48", "#e0662f"],
+            food: ["#f2ead8", "#2f4a3a"], kiss: ["#d36b9c", "#f2c1cf", "#b3261e"], flower: ["#f2c1cf", "#7cd15a", "#e9b04a"], star: ["#fff6d0", "#e9b04a", "#8fb8ff"], portrait: ["#f2ead8", "#8a6a48", "#e0662f"], axe: ["#b9c2c9", "#6b4426"], bubble: ["#8fc7e8", "#cfe8f5"], ink: ["#1d1a20", "#3b3440"], haunt: ["#efe5d0", "#cdd6ff"],
           }[f.type];
           for (let i = 0; i < 10; i++) {
             const ang = (i / 10) * Math.PI * 2;
