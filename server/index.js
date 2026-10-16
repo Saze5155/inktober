@@ -60,11 +60,13 @@ const DAY_ACTIONS = {
   7: { stat: "feeds", fx: "food" }, 8: { stat: "kisses", fx: "kiss" }, 9: { stat: "flowers", fx: "flower" }, 10: { stat: "wishes", fx: "star" },
   11: { stat: "frights", fx: "boo" }, 12: { stat: "portraits", fx: "portrait" },
   13: { stat: "duels", fx: "axe" }, 14: { stat: "bubbles", fx: "bubble" }, 15: { stat: "inks", fx: "ink" }, 16: { stat: "haunts", fx: "haunt" },
+  17: { stat: "plushies", fx: "plush" }, 18: { stat: "cards", fx: "card" }, 19: { stat: "tarots", fx: "tarot" }, 20: { stat: "whips", fx: "whip" },
+  21: { stat: "orbits", fx: "orbit" }, 22: { stat: "hugs", fx: "hug" }, 23: { stat: "scans", fx: "scan" },
 };
 // trophée « 3 étoiles » de chaque jeu du jour
 const STAR_TROPHIES = {
   1: "enfantnuit", 2: "souffle", 3: "chromatique", 4: "glisse", 5: "rythme", 6: "alchimiste",
-  7: "festin", 8: "charmeur", 9: "jardinier", 10: "astronome", 11: "veilleur", 12: "enqueteur", 13: "berserker", 14: "abyssal", 15: "premieregoutte", 16: "survivant",
+  7: "festin", 8: "charmeur", 9: "jardinier", 10: "astronome", 11: "veilleur", 12: "enqueteur", 13: "berserker", 14: "abyssal", 15: "premieregoutte", 16: "survivant", 17: "griffe", 18: "roiduel", 19: "chateau", 20: "ficelle", 21: "astral", 22: "nounou", 23: "robot",
 };
 
 function findByPseudo(pseudo) {

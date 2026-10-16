@@ -30,6 +30,8 @@
     7: { verb: "Offrir un onigiri à" }, 8: { verb: "Envoyer un bisou à" }, 9: { verb: "Faire pousser une fleur sur" }, 10: { verb: "Lancer une étoile filante sur" },
     11: { verb: "Faire peur à" }, 12: { verb: "Croquer le portrait de" },
     13: { verb: "Lancer une hache en mousse sur" }, 14: { verb: "Envoyer une bulle d'air à" }, 15: { verb: "Éclabousser d'encre" }, 16: { verb: "Hanter" },
+    17: { verb: "Offrir un Pachimari à" }, 18: { verb: "Défier en duel" }, 19: { verb: "Tirer les cartes à" }, 20: { verb: "Fouetter (gentiment)" },
+    21: { verb: "Envoyer en orbite" }, 22: { verb: "Faire un câlin à" }, 23: { verb: "Scanner" },
   };
 
   if (location.hostname === "localhost") window.__enxor = S; // debug en local uniquement
@@ -137,7 +139,7 @@
     });
     socket.on("fx", ({ type, from, to }) => {
       S.fx.push({ type, from, to, t: performance.now() / 1000 });
-      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash", food: "bite", kiss: "coeur", flower: "chat", star: "firework", boo: "surprise", portrait: "post", axe: "kick", bubble: "plouf", ink: "splash", haunt: "howl" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
+      Sound.play({ bite: "bite", flame: "flame", paint: "splash", shoe: "plouf", blood: "drop", potion: "splash", food: "bite", kiss: "coeur", flower: "chat", star: "firework", boo: "surprise", portrait: "post", axe: "kick", bubble: "plouf", ink: "splash", haunt: "howl", plush: "coeur", card: "click", tarot: "reveal", whip: "kick", orbit: "firework", hug: "coeur", scan: "tick" }[type], from === S.me?.id || to === S.me?.id ? 1 : hearEnt(to));
       const who = S.players.get(from)?.pseudo;
       if (to === S.me?.id) toast({
         bite: `${who} t'a mordu·e ! 🩸`, flame: `${who} t'a roussi·e ! 🔥`, paint: `${who} t'a repeint·e ! 🎨`,
@@ -145,6 +147,8 @@
         food: `${who} t'a offert un onigiri ! 🍙`, kiss: `${who} t'a envoyé un bisou ! 💋`, flower: `${who} t'a fait pousser une fleur sur la tête ! 🌸`, star: `${who} t'a lancé une étoile filante ! Fais un vœu ✨`,
         boo: `${who} t'a fait peur ! BOUH ! 👻`, portrait: `${who} a croqué ton portrait ! 🖼️`,
         axe: `${who} t'a lancé une hache… en mousse ! 🪓`, bubble: `${who} t'a envoyé une bulle d'air ! 🫧`, ink: `${who} t'a éclaboussé d'encre ! 🖋️`, haunt: `${who} te hante… 👻`,
+        plush: `${who} t'a offert un Pachimari ! 🐙`, card: `${who} te défie en duel ! C'est l'heure du duel ! 🃏`, tarot: `${who} t'a tiré les cartes : ${["la Lune", "le Fou", "l'Amoureux", "la Mort (pas de panique)", "le Soleil", "la Roue de fortune"][Math.floor(Math.random() * 6)]} 🔮`,
+        whip: `${who} t'a fouetté·e… gentiment. Mot de sûreté : cornichon 🥒`, orbit: `${who} t'a envoyé·e en orbite ! 🪐`, hug: `${who} t'a fait un gros câlin ! 🤗`, scan: `${who} t'a scanné·e : 0 % humain ✅`,
       }[type]);
     });
     socket.on("lg:state", (s) => Werewolf.onState(s));
@@ -884,7 +888,7 @@
         ctx.fillStyle = "#f2ead8";
         for (let i = 0; i < 5; i++) { const x = b.x - 16 * k + i * 8 * k; ctx.beginPath(); ctx.moveTo(x, b.y - 28 * scale); ctx.lineTo(x + 4 * k, b.y - 20 * scale); ctx.lineTo(x + 8 * k, b.y - 28 * scale); ctx.fill(); }
         Ink.word(ctx, "BOUH !", b.x, b.y - 100 * scale - age * 20, 20, "#7d5ba6", 800);
-      } else if (["shoe", "blood", "potion", "food", "kiss", "flower", "star", "portrait", "axe", "bubble", "ink", "haunt"].includes(f.type)) {
+      } else if (["shoe", "blood", "potion", "food", "kiss", "flower", "star", "portrait", "axe", "bubble", "ink", "haunt", "plush", "card", "tarot", "whip", "orbit", "hug", "scan"].includes(f.type)) {
         // une petite icône qui vole de l'un à l'autre, puis éclate
         const k = Math.min(1, age * 2);
         const x = a.x + (b.x - a.x) * k, y = a.y - 30 * scale + (b.y - a.y) * k - Math.sin(k * Math.PI) * 60;
@@ -905,6 +909,31 @@
         } else if (f.type === "flower") {
           for (let p = 0; p < 5; p++) { const a = (p / 5) * Math.PI * 2 + age * 4; ctx.fillStyle = "#f2c1cf"; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 6, y + Math.sin(a) * 6, 5, 0, Math.PI * 2); ctx.fill(); }
           ctx.fillStyle = "#e9b04a"; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+        } else if (f.type === "plush") {
+          // un petit Pachimari : tête d'oignon et tentacules
+          ctx.fillStyle = "#f2c94c"; ctx.strokeStyle = Ink.INK; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(x, y, 9, Math.PI, 0); ctx.lineTo(x + 9, y + 5); for (let i = 0; i < 4; i++) ctx.quadraticCurveTo(x + 9 - i * 4.5 - 2.2, y + 11, x + 9 - (i + 1) * 4.5, y + 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "#5b8c5a"; ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.quadraticCurveTo(x + 2, y - 18, x + 6, y - 16); ctx.quadraticCurveTo(x + 2, y - 12, x, y - 9); ctx.fill();
+          ctx.fillStyle = Ink.INK; ctx.beginPath(); ctx.arc(x - 3, y - 1, 1.3, 0, Math.PI * 2); ctx.arc(x + 3, y - 1, 1.3, 0, Math.PI * 2); ctx.fill();
+        } else if (f.type === "card" || f.type === "tarot") {
+          ctx.save(); ctx.translate(x, y); ctx.rotate(age * 10);
+          ctx.fillStyle = f.type === "card" ? "#8a5a2c" : "#3e2a6a"; ctx.strokeStyle = "#e9b04a"; ctx.lineWidth = 2;
+          ctx.fillRect(-8, -11, 16, 22); ctx.strokeRect(-8, -11, 16, 22);
+          ctx.restore();
+        } else if (f.type === "whip") {
+          ctx.strokeStyle = "#2b2731"; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y - 30 * scale); ctx.quadraticCurveTo((a.x + x) / 2, y - 40, x, y); ctx.stroke();
+          if (k >= 1) Ink.word(ctx, "CLAC !", b.x, b.y - 80 * scale - age * 20, 18, "#b3261e", 800);
+        } else if (f.type === "orbit") {
+          ctx.fillStyle = "#3e7cb1"; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = "#e9b04a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(x, y, 14, 4, -0.3, 0, Math.PI * 2); ctx.stroke();
+        } else if (f.type === "hug") {
+          Ink.heart(ctx, x - 6, y, 7, "#f2c1cf"); Ink.heart(ctx, x + 6, y - 4, 6, "#d36b9c");
+        } else if (f.type === "scan") {
+          ctx.strokeStyle = "rgba(120,240,210,.9)"; ctx.lineWidth = 2;
+          const sy = b.y - 50 * scale + Math.sin(age * 8) * 30 * scale;
+          ctx.beginPath(); ctx.moveTo(b.x - 24 * scale, sy); ctx.lineTo(b.x + 24 * scale, sy); ctx.stroke();
+          Ink.halo(ctx, "rgba(120,240,210,.4)", b.x, sy, 22);
         } else if (f.type === "axe") {
           // une hache qui tourne en vol
           ctx.save(); ctx.translate(x, y); ctx.rotate(age * 14);
@@ -944,7 +973,7 @@
         if (k >= 1) {
           const colors = {
             shoe: ["#e0662f", "#5bb3a0", "#d36b9c"], blood: ["#b3261e", "#8e1b2b"], potion: ["#7cd15a", "#b48be0", "#5bb3a0"],
-            food: ["#f2ead8", "#2f4a3a"], kiss: ["#d36b9c", "#f2c1cf", "#b3261e"], flower: ["#f2c1cf", "#7cd15a", "#e9b04a"], star: ["#fff6d0", "#e9b04a", "#8fb8ff"], portrait: ["#f2ead8", "#8a6a48", "#e0662f"], axe: ["#b9c2c9", "#6b4426"], bubble: ["#8fc7e8", "#cfe8f5"], ink: ["#1d1a20", "#3b3440"], haunt: ["#efe5d0", "#cdd6ff"],
+            food: ["#f2ead8", "#2f4a3a"], kiss: ["#d36b9c", "#f2c1cf", "#b3261e"], flower: ["#f2c1cf", "#7cd15a", "#e9b04a"], star: ["#fff6d0", "#e9b04a", "#8fb8ff"], portrait: ["#f2ead8", "#8a6a48", "#e0662f"], axe: ["#b9c2c9", "#6b4426"], bubble: ["#8fc7e8", "#cfe8f5"], ink: ["#1d1a20", "#3b3440"], haunt: ["#efe5d0", "#cdd6ff"], plush: ["#f2c94c", "#5b8c5a", "#d36b9c"], card: ["#e9b04a", "#8a5a2c"], tarot: ["#b48be0", "#e9b04a"], whip: ["#b3261e", "#2b2731"], orbit: ["#3e7cb1", "#e9b04a", "#fff6d0"], hug: ["#f2c1cf", "#d36b9c"], scan: ["#7cd1c0", "#c8fff0"],
           }[f.type];
           for (let i = 0; i < 10; i++) {
             const ang = (i / 10) * Math.PI * 2;
