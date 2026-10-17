@@ -182,7 +182,7 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.fillStyle = "#1b1b1b"; ctx.fillRect(0, 0, vw, vh);
         ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * ox, dpr * oy);
-        ctx.beginPath(); ctx.rect(0, 0, AW, AH); ctx.clip();
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, AW, AH); ctx.clip();
         // la chambre : mur pastel à nuages, parquet
         ctx.fillStyle = "#cfe3ef"; ctx.fillRect(0, 0, AW, 470);
         ctx.fillStyle = "rgba(255,255,255,.7)";
@@ -217,6 +217,7 @@
         Ink.word(ctx, `${served} besoins comblés`, 990, AH - 38, 14, INK, 700, PAPER);
         if (secs() - startAt < 4) Ink.word(ctx, "Prends un objet en bas, puis donne-le au bon bébé !", AW / 2, 130, 22, "#3e7cb1", 800, PAPER);
         if (ended) Ink.word(ctx, "Les parents arrivent ! Ouf.", AW / 2, 200, 40, "#d36b9c", 800, PAPER);
+        ctx.restore();
       }
 
       let raf = 0, last = performance.now(), running = true;
