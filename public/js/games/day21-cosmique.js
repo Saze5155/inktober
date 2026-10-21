@@ -3,21 +3,22 @@
 // Chaque niveau a été construit à partir d'une solution réelle (même physique qu'ici).
 (() => {
   const { INK, PAPER } = Ink;
-  const AW = 1100, AH = 680, WELL_GM = 1.6e6, WELL_R = 16, DT = 1 / 240, TMAX = 14;
+  const AW = 1100, AH = 680, WELL_GM = 1.6e6, WELL_R = 16, DT = 1 / 240, TMAX = 14, STAR_R = 40, PORTAL_R = 48;
 
+  // niveaux générés à partir d'une solution, puis gardés seulement s'ils restent faisables quand on décale les puits de ±30 px
   const LEVELS = [
-    { start: [80, 380], v: [240, 0], wells: 1, planets: [], stars: [[560, 300], [760, 230]], portal: [1000, 200], sol: [[180, 200]] },
-    { start: [80, 560], v: [230, -40], wells: 2, planets: [[560, 330, 60, 2.2e6]], stars: [[430, 520], [760, 520], [930, 360]], portal: [960, 160], sol: [[380, 640], [820, 480]] },
-    { start: [80, 140], v: [230, 30], wells: 2, planets: [[600, 360, 50, 3.2e6]], stars: [[364, 378], [689, 459], [898, 263]], portal: [979, 71], sol: [[550, 180], [90, 210]] },
-    { start: [80, 340], v: [240, 0], wells: 2, planets: [[560, 340, 40, -2.4e6]], stars: [[412, 190], [502, 230], [283, 153]], portal: [45, 311], sol: [[370, 230], [110, 270]] },
-    { start: [80, 600], v: [200, -90], wells: 3, planets: [[420, 260, 45, 1.8e6], [780, 420, 45, 1.8e6]], stars: [[315, 244], [661, 118], [1003, 288]], portal: [940, 625], sol: [[90, 510], [940, 260], [730, 340]] },
+    { start: [80, 380], v: [240, 0], wells: 1, planets: [], stars: [[433, 382], [755, 409]], portal: [1033, 500], sol: [[700, 530]] },
+    { start: [80, 560], v: [230, -40], wells: 1, planets: [[560, 330, 60, 1.3e6]], stars: [[442, 488], [757, 350]], portal: [991, 177], sol: [[520, 130]] },
+    { start: [80, 140], v: [230, 30], wells: 2, planets: [[600, 360, 50, 1.8e6]], stars: [[411, 143], [636, 100], [835, 86]], portal: [1011, 87], sol: [[260, 100], [160, 280]] },
+    { start: [80, 340], v: [240, 0], wells: 2, planets: [[560, 340, 40, -1.6e6]], stars: [[362, 363], [566, 430], [782, 534]], portal: [988, 618], sol: [[190, 550], [620, 360]] },
+    { start: [80, 600], v: [200, -90], wells: 2, planets: [[420, 300, 45, 1.2e6], [760, 380, 45, 1.2e6]], stars: [[357, 441], [618, 268], [837, 141]], portal: [1032, 51], sol: [[160, 370], [480, 490]] },
   ];
 
   Games.register(21, {
     title: "La comète perdue",
     music: "night",
     story: "Une petite comète s'est perdue loin du ciel de Noctifer. Elle ne sait pas tourner toute seule : elle suit la gravité, c'est tout. Pose des puits de gravité sur sa route pour la faire passer par les étoiles qu'elle doit rallumer, puis jusqu'au portail qui la ramène chez elle.",
-    controls: "Clique pour poser un puits de gravité (nombre limité), clique dessus pour le retirer. Espace ou « Lancer » : lâcher la comète. Le début de sa trajectoire est affiché en pointillés.",
+    controls: "Clique pour poser un puits de gravité, fais-le glisser pour l'ajuster, clique dessus pour le retirer. Les pointillés montrent où ira la comète. Les étoiles et le portail l'attirent un peu quand elle passe près. Espace ou « Lancer » : c'est parti.",
 
     start(root, api) {
       const canvas = document.createElement("canvas");
@@ -61,7 +62,7 @@
       const bodies = () => [...L.planets.map((p) => ({ x: p[0], y: p[1], r: p[2], gm: p[3] })), ...wells.map(([x, y]) => ({ x, y, r: WELL_R, gm: WELL_GM }))];
 
       // un pas de physique ; renvoie "crash", "out", "portal" ou null
-      function step(c, B, gotSet) {
+      function step(c, B, gotSet, quiet) {
         let ax = 0, ay = 0;
         for (const b of B) {
           const dx = b.x - c.x, dy = b.y - c.y, d2 = dx * dx + dy * dy, d = Math.sqrt(d2);
@@ -69,16 +70,20 @@
           const f = b.gm / Math.max(d2, 400) / d;
           ax += dx * f; ay += dy * f;
         }
+        // les étoiles (puis le portail) attirent un peu la comète quand elle passe près : ça pardonne les tirs presque bons
+        const mag = (tx, ty, R, A) => { const dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy); if (d < R && d > 1) { ax += (dx / d) * A; ay += (dy / d) * A; } };
+        L.stars.forEach((st, i) => { if (!gotSet.has(i)) mag(st[0], st[1], 90, 700); });
+        if (gotSet.size === L.stars.length) mag(L.portal[0], L.portal[1], 130, 900);
         c.vx += ax * DT; c.vy += ay * DT; c.x += c.vx * DT; c.y += c.vy * DT; c.t += DT;
         if (c.x < -60 || c.x > AW + 60 || c.y < -60 || c.y > AH + 60) return "out";
-        if (gotSet) L.stars.forEach((st, i) => { if (!gotSet.has(i) && (st[0] - c.x) ** 2 + (st[1] - c.y) ** 2 < 24 * 24) { gotSet.add(i); pops.push({ text: "✦", x: st[0], y: st[1], t: secs() }); Sound.play("note", 0.8, gotSet.size + 3); } });
-        if ((L.portal[0] - c.x) ** 2 + (L.portal[1] - c.y) ** 2 < 30 * 30) return "portal";
+        L.stars.forEach((st, i) => { if (!gotSet.has(i) && (st[0] - c.x) ** 2 + (st[1] - c.y) ** 2 < STAR_R * STAR_R) { gotSet.add(i); if (!quiet) { pops.push({ text: "✦", x: st[0], y: st[1], t: secs() }); Sound.play("note", 0.8, gotSet.size + 3); } } });
+        if ((L.portal[0] - c.x) ** 2 + (L.portal[1] - c.y) ** 2 < PORTAL_R * PORTAL_R) return "portal";
         if (c.t > TMAX) return "out";
         return null;
       }
       function preview() {
-        const c = { x: L.start[0], y: L.start[1], vx: L.v[0], vy: L.v[1], t: 0 }, B = bodies(), pts = [];
-        for (let k = 0; k < 240 * 0.9; k++) { if (step(c, B, null)) break; if (k % 6 === 0) pts.push([c.x, c.y]); }
+        const c = { x: L.start[0], y: L.start[1], vx: L.v[0], vy: L.v[1], t: 0 }, B = bodies(), pts = [], g = new Set();
+        for (let k = 0; k < 240 * 2.5; k++) { const res = step(c, B, g, true); if (k % 6 === 0) pts.push([c.x, c.y]); if (res) break; }
         return pts;
       }
 
@@ -106,11 +111,23 @@
         if (m.x > BTN.x && m.x < BTN.x + BTN.w && m.y > BTN.y && m.y < BTN.y + BTN.h) return launch();
         if (phase !== "edit") return;
         const hit = wells.findIndex(([x, y]) => Math.hypot(x - m.x, y - m.y) < 26);
-        if (hit >= 0 || e.button === 2) { if (hit >= 0) { wells.splice(hit, 1); Sound.play("tick"); } return; }
+        if (hit >= 0) { drag = { i: hit, x0: m.x, y0: m.y, moved: false }; canvas.setPointerCapture(e.pointerId); return; }
+        if (e.button === 2) return;
         if (wells.length >= L.wells) { pops.push({ text: "Plus de puits ! Retires-en un.", x: m.x, y: m.y - 20, t: secs() }); return; }
-        if (L.planets.some((p) => Math.hypot(p[0] - m.x, p[1] - m.y) < p[2] + 30)) return;
+        if (L.planets.some((p) => Math.hypot(p[0] - m.x, p[1] - m.y) < p[2] + WELL_R + 4)) return;
         wells.push([Math.round(m.x), Math.round(m.y)]);
         Sound.play("drop", 0.6);
+      });
+      let drag = null;
+      canvas.addEventListener("pointermove", (e) => {
+        if (!drag || phase !== "edit") return;
+        const m = toArena(e);
+        if (Math.hypot(m.x - drag.x0, m.y - drag.y0) > 5) drag.moved = true;
+        if (drag.moved) wells[drag.i] = [Math.round(Math.max(20, Math.min(AW - 20, m.x))), Math.round(Math.max(20, Math.min(AH - 20, m.y)))];
+      });
+      canvas.addEventListener("pointerup", () => {
+        if (drag && !drag.moved) { wells.splice(drag.i, 1); Sound.play("tick"); }
+        drag = null;
       });
       const onKey = (e) => {
         if (e.key === " ") { e.preventDefault(); if (phase === "won") next(); else launch(); }
@@ -189,6 +206,17 @@
           ctx.fillStyle = on ? "#fff1b0" : "#8a8a9a";
           ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 5 + (on ? t : 0), rr = k % 2 ? 5 : 13; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.fill();
         });
+        // zone d'attraction des étoiles à rallumer
+        ctx.strokeStyle = "rgba(255,230,140,.18)"; ctx.lineWidth = 1.5; ctx.setLineDash([3, 6]);
+        L.stars.forEach(([x, y], i) => { if (!got.has(i)) { ctx.beginPath(); ctx.arc(x, y, STAR_R, 0, Math.PI * 2); ctx.stroke(); } });
+        ctx.setLineDash([]);
+        // astuce après trois échecs : l'emplacement d'un puits qui marche
+        if (phase === "edit" && tries >= 3) {
+          const [hx, hy] = L.sol[0];
+          ctx.strokeStyle = "rgba(224,200,255," + (0.4 + Math.sin(t * 4) * 0.2) + ")"; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+          ctx.beginPath(); ctx.arc(hx, hy, 26, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+          Ink.word(ctx, "astuce", hx, hy - 38, 13, "#e0c8ff", 700, "#06061a");
+        }
         // puits posés
         for (const [x, y] of wells) {
           ctx.strokeStyle = "rgba(180,139,224,.35)"; ctx.lineWidth = 1.5;
