@@ -43,7 +43,7 @@ function publicPlayer(p) {
   return {
     id: p.id, pseudo: p.pseudo, owner: p.owner, plot: p.plot, color: p.color, cabin: p.cabin, drawings: p.drawings,
     games: p.games || {}, wear: p.wear || {}, trophies: Object.keys(p.trophies || {}), stats: p.stats || {},
-    quests: p.quests || {}, portrait: p.portrait || null,
+    quests: p.quests || {}, portrait: p.portrait || null, tourney: p.tourney?.best ?? null,
   };
 }
 
@@ -65,6 +65,17 @@ const DAY_ACTIONS = {
   24: { stat: "mirrors", fx: "mirror" }, 25: { stat: "stickers", fx: "sticker" }, 26: { stat: "photos", fx: "photo" }, 27: { stat: "rockets", fx: "rocket" },
   28: { stat: "fishgifts", fx: "fishgift" }, 29: { stat: "threads", fx: "thread" }, 30: { stat: "swords", fx: "sword" }, 31: { stat: "sisters", fx: "sister" },
 };
+// Le grand tournoi de speedrun du 31 octobre : cinq jeux tirés une fois pour toutes (même tirage pour tout le monde),
+// chacun avec sa graine de hasard. Chrono total + 20 s par étoile manquée. Le propriétaire clôt et couronne.
+const TOURNEY_POOL = [4, 6, 7, 10, 12, 15, 16, 18, 21, 25, 26, 28, 29];
+const TOURNEY = (() => {
+  let seed = 31102026;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const pool = [...TOURNEY_POOL];
+  const games = [];
+  while (games.length < 5) games.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+  return { games, seeds: games.map((d) => 3100 + d * 17), penalty: 20 };
+})();
 // trophée « 3 étoiles » de chaque jeu du jour
 const STAR_TROPHIES = {
   1: "enfantnuit", 2: "souffle", 3: "chromatique", 4: "glisse", 5: "rythme", 6: "alchimiste",
@@ -448,6 +459,35 @@ io.on("connection", (socket) => {
     lastEmote = now;
     io.emit("emote", { id: p.id, type });
     if (type === "danse") trophies.bump(p, "dances");
+  });
+
+  socket.on("tour:info", (_, ack) => {
+    if (typeof ack !== "function") return;
+    ack({ open: clock.unlockedDays() >= 31, ...TOURNEY, closed: db.tourneyWinner || null });
+  });
+  socket.on("tour:done", (r) => {
+    if (clock.unlockedDays() < 31 || db.tourneyWinner) return;
+    const times = Array.isArray(r?.times) ? r.times.map(Number) : [], stars = Array.isArray(r?.stars) ? r.stars.map(Number) : [];
+    if (times.length !== TOURNEY.games.length || stars.length !== times.length) return;
+    if (times.some((t) => !(t >= 1 && t < 3600)) || stars.some((s) => !(s >= 0 && s <= 3))) return;
+    const total = Math.round((times.reduce((a, b) => a + b, 0) + stars.reduce((a, s) => a + (3 - Math.round(s)) * TOURNEY.penalty, 0)) * 10) / 10;
+    p.tourney ||= { best: null, runs: 0 };
+    p.tourney.runs++;
+    if (p.tourney.best === null || total < p.tourney.best) p.tourney.best = total;
+    trophies.award(p, "tournoi");
+    store.save();
+    io.emit("player:update", publicPlayer(p));
+  });
+  socket.on("tour:close", (_, ack) => {
+    if (!p.owner || clock.unlockedDays() < 31 || db.tourneyWinner) return ack?.({ ok: false });
+    const ranked = Object.values(db.players).filter((q) => q.tourney?.best != null).sort((a, b) => a.tourney.best - b.tourney.best);
+    if (!ranked.length) return ack?.({ ok: false, error: "Personne n'a encore terminé le tournoi." });
+    const w = ranked[0];
+    db.tourneyWinner = w.id;
+    trophies.award(w, "champion");
+    store.save();
+    io.emit("tour:closed", { id: w.id, pseudo: w.pseudo, time: w.tourney.best });
+    ack?.({ ok: true });
   });
 
   socket.on("game:done", (r) => {

@@ -389,3 +389,8 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 .museum-view[hidden] { display: none; }
 .museum-view img { max-width: min(90vw, 1100px); max-height: 74vh; border: 10px solid #c9a24a; border-radius: 4px; background: #efe5d0; }
 .museum-view p { color: #efe5d0; font-size: 18px; font-weight: 700; margin: 0; text-align: center; }
+/* ---------- Le grand tournoi (31 octobre) ---------- */
+.tourney { margin: 18px 0; padding: 16px 18px; border: 2px solid #c9a24a; border-radius: 14px; background: rgba(201, 162, 74, .08); }
+.tourney h3 { margin: 0 0 6px; }
+.tourney-games { margin: 8px 0 12px; padding-left: 0; list-style: none; display: grid; gap: 4px; font-weight: 700; }
+.tourney-timer { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; padding: 6px 16px; border-radius: 999px; background: rgba(20, 16, 12, .85); border: 1px solid #c9a24a; color: #ffd84a; font-weight: 800; font-variant-numeric: tabular-nums; pointer-events: none; }

@@ -136,6 +136,11 @@
       const rewards = t.reward.map((c) => S.catalog.cosmetics[c]?.name).join(" + ");
       toast(`🏆 Trophée « ${t.name} » ! Débloqué : ${rewards}. Appuie sur T pour l'équiper.`, 6000);
     });
+    socket.on("tour:closed", ({ pseudo, time }) => {
+      toast(`👑 Le tournoi est clos : ${pseudo} est champion·ne d'Enxor en ${Math.floor(time / 60)} min ${Math.round(time % 60)} s !`, 8000);
+      Sound.play("win");
+      if (S.panel?.type === "source") openPanel({ type: "source" });
+    });
     socket.on("trophy:announce", ({ pseudo, name }) => {
       if (pseudo !== S.me?.pseudo) toast(`🏆 ${pseudo} a obtenu le trophée « ${name} »`);
     });
@@ -1681,12 +1686,130 @@
       el("p", { class: "eyebrow", text: "La Source" }),
       el("h2", { class: "script", text: n ? THEMES[n - 1] : "Elle dort encore" }),
       el("p", { class: "lore", text: "Quand les humains ont disparu, leur encre a continué de couler. C'est d'ici que sont nés les Enxors. Chaque nuit à minuit, la Source fait remonter un vestige du monde d'avant." }),
+      n >= 31 ? tourneySection() : null,
       el("p", { class: "muted", text: "Astuce : dansez à plusieurs autour de la Source (touche 4)… et un ballon d'encre traîne sur la place, faites-vous des passes." }),
       games.length ? el("div", { class: "games" }, games) : el("p", { class: "muted", text: "Le jeu de ce vestige arrive bientôt." }),
-      n && !Games.get(n) && games.length ? el("p", { class: "muted", text: "Le jeu du vestige d'aujourd'hui arrive bientôt." }) : null,
+      n && n < 31 && !Games.get(n) && games.length ? el("p", { class: "muted", text: "Le jeu du vestige d'aujourd'hui arrive bientôt." }) : null,
       el("ol", { class: "days" }, THEMES.map((th, i) =>
         el("li", { class: i < n ? "done" : "" }, el("b", { text: i + 1 }), el("span", { text: i < n ? th : "???" })))),
     );
+  }
+
+  // ---------- Le grand tournoi de speedrun (31 octobre) ----------
+
+  function fmtTime(sec) {
+    const m = Math.floor(sec / 60), s = sec - m * 60;
+    return `${m}:${s < 10 ? "0" : ""}${s.toFixed(1)}`;
+  }
+  function tourneyBoard() {
+    return [...S.players.values()].filter((p) => p.tourney != null).sort((a, b) => a.tourney - b.tourney);
+  }
+  function tourneySection() {
+    const box = el("section", { class: "tourney" }, el("p", { class: "muted", text: "Le grand tournoi se prépare…" }));
+    S.socket.emit("tour:info", null, (info) => {
+      S.tourney = info;
+      const board = tourneyBoard();
+      const champ = info.closed && S.players.get(info.closed);
+      box.replaceChildren(
+        el("h3", { class: "script", text: "Le grand tournoi" }),
+        el("p", { class: "lore", text: champ ? `Le tournoi est clos. ${champ.pseudo} est champion d'Enxor : sa statue trône dans le hall du musée.` : "Cinq vestiges du mois, tirés au sort, à enchaîner le plus vite possible. Même tirage et même hasard pour tout le monde. Chaque étoile manquée coûte 20 secondes. Ton meilleur temps compte, tu peux réessayer." }),
+        el("ol", { class: "tourney-games" }, info.games.map((d, i) => el("li", { text: `${i + 1}. Jour ${d} · ${Games.get(d)?.title || THEMES[d - 1]}` }))),
+        board.length ? el("ol", { class: "ranking" }, board.slice(0, 10).map((p) => el("li", { class: p.id === S.me.id ? "me" : "" }, el("span", { text: p.pseudo }), el("b", { text: fmtTime(p.tourney) })))) : el("p", { class: "muted", text: "Personne n'a encore terminé le tournoi." }),
+        el("div", { class: "actions" },
+          !info.closed && el("button", { class: "btn", text: "Lancer le tournoi", onclick: () => runTourney(info) }),
+          S.me.owner && !info.closed && board.length > 0 && el("button", { class: "btn ghost", text: "Clore et couronner le champion", onclick: () => {
+            if (!confirm(`Clore le tournoi ? ${board[0].pseudo} sera couronné·e champion·ne (${fmtTime(board[0].tourney)}).`)) return;
+            S.socket.emit("tour:close", null, (res) => { if (!res?.ok) toast(res?.error || "Impossible de clore le tournoi."); });
+          } })),
+      );
+    });
+    return box;
+  }
+
+  function runTourney(info) {
+    closePanel();
+    stopActivity();
+    S.keys.clear();
+    Sound.ambience({ fire: 0, water: 0, crickets: 0 });
+    const run = { k: 0, times: [], stars: [], clock: 0, startedAt: 0 };
+    const timer = el("div", { class: "tourney-timer" });
+    const realRandom = Math.random;
+    let tick = 0;
+    S.game = { day: 0, tournament: true, stop: null, cleanup: () => { Math.random = realRandom; cancelAnimationFrame(tick); timer.remove(); } };
+    $("game").hidden = false;
+    $("hud").hidden = true;
+    $("game").append(timer);
+    const draw = () => {
+      const live = run.startedAt ? (performance.now() - run.startedAt) / 1000 : 0;
+      timer.textContent = `⏱ ${fmtTime(run.clock + live)} · épreuve ${Math.min(run.k + 1, info.games.length)} / ${info.games.length}`;
+      tick = requestAnimationFrame(draw);
+    };
+    draw();
+    const intro = () => {
+      const d = info.games[run.k], g = Games.get(d);
+      $("game-title").textContent = `Grand tournoi · épreuve ${run.k + 1} / ${info.games.length}`;
+      Sound.setMood("game");
+      $("game-stage").replaceChildren(card(
+        el("p", { class: "eyebrow", text: `Épreuve ${run.k + 1} / ${info.games.length} · Jour ${d} · ${THEMES[d - 1]}` }),
+        el("h2", { class: "script", text: g.title }),
+        el("p", { class: "muted", text: g.controls }),
+        el("p", { class: "muted", text: "Le chrono démarre quand tu cliques sur « Go ». Il est arrêté entre les épreuves." }),
+        el("button", { class: "btn", text: "Go !", onclick: () => play(d, g) }),
+      ));
+    };
+    const play = (d, g) => {
+      const stage = el("div", { class: "game-root" });
+      $("game-stage").replaceChildren(stage);
+      Sound.setMood(g.music || "game");
+      Sound.play("start");
+      // même hasard pour tout le monde
+      Math.random = Ink.rng(info.seeds[run.k]);
+      run.startedAt = performance.now();
+      let done = false;
+      const api = {
+        me: { id: S.me.id, pseudo: S.me.pseudo, color: S.me.color, wear: S.me.wear || {} },
+        finish(result) {
+          if (done) return;
+          done = true;
+          const t = (performance.now() - run.startedAt) / 1000;
+          run.clock += t; run.startedAt = 0;
+          Math.random = realRandom;
+          run.times.push(Math.round(t * 10) / 10); run.stars.push(result.stars);
+          if (S.game?.stop) S.game.stop();
+          if (S.game) S.game.stop = null;
+          run.k++;
+          if (run.k < info.games.length) {
+            $("game-stage").replaceChildren(card(
+              el("p", { class: "eyebrow", text: `Épreuve ${run.k} terminée` }),
+              el("h2", { class: "script", text: `${fmtTime(t)}  ${"★".repeat(result.stars)}${"☆".repeat(3 - result.stars)}` }),
+              el("p", { class: "muted", text: result.stars < 3 ? `+${(3 - result.stars) * info.penalty} s de pénalité pour les étoiles manquées` : "Sans pénalité !" }),
+              el("button", { class: "btn", text: "Épreuve suivante", onclick: intro }),
+            ));
+          } else finishTourney();
+        },
+      };
+      S.game.stop = g.start(stage, api);
+      // tests : terminer l'épreuve sans la jouer
+      if (location.hostname === "localhost") window.__tourney = { finishNow: (stars) => api.finish({ score: 0, stars, lines: [] }) };
+    };
+    const finishTourney = () => {
+      const penalty = run.stars.reduce((a, s) => a + (3 - s) * info.penalty, 0);
+      const total = run.clock + penalty;
+      S.socket.emit("tour:done", { times: run.times, stars: run.stars });
+      Sound.play("win");
+      const prev = S.players.get(S.me.id)?.tourney;
+      $("game-stage").replaceChildren(card(
+        el("p", { class: "eyebrow", text: "Tournoi terminé !" }),
+        el("h2", { class: "script", text: fmtTime(total) }),
+        el("p", { class: "muted", text: `Chrono ${fmtTime(run.clock)} + ${penalty} s de pénalité` }),
+        el("p", { class: "muted", text: run.times.map((t, i) => `${i + 1} : ${fmtTime(t)} ${"★".repeat(run.stars[i])}`).join(" · ") }),
+        prev != null && total >= prev ? el("p", { class: "muted", text: `Ton record reste ${fmtTime(prev)}.` }) : el("p", { class: "muted", text: "Nouveau record personnel !" }),
+        el("div", { class: "actions" },
+          el("button", { class: "btn", text: "Retenter", onclick: () => { closeGame(); runTourney(info); } }),
+          el("button", { class: "btn ghost", text: "Retour au village", onclick: closeGame })),
+      ));
+    };
+    intro();
   }
 
   function renderHouse(body) {
@@ -1752,6 +1875,7 @@
 
   function closeGame() {
     stopGame();
+    S.game?.cleanup?.();
     S.game = null;
     $("game").hidden = true;
     $("hud").hidden = false;
