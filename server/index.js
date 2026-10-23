@@ -43,7 +43,7 @@ function publicPlayer(p) {
   return {
     id: p.id, pseudo: p.pseudo, owner: p.owner, plot: p.plot, color: p.color, cabin: p.cabin, drawings: p.drawings,
     games: p.games || {}, wear: p.wear || {}, trophies: Object.keys(p.trophies || {}), stats: p.stats || {},
-    quests: p.quests || {},
+    quests: p.quests || {}, portrait: p.portrait || null,
   };
 }
 
@@ -62,11 +62,13 @@ const DAY_ACTIONS = {
   13: { stat: "duels", fx: "axe" }, 14: { stat: "bubbles", fx: "bubble" }, 15: { stat: "inks", fx: "ink" }, 16: { stat: "haunts", fx: "haunt" },
   17: { stat: "plushies", fx: "plush" }, 18: { stat: "cards", fx: "card" }, 19: { stat: "tarots", fx: "tarot" }, 20: { stat: "whips", fx: "whip" },
   21: { stat: "orbits", fx: "orbit" }, 22: { stat: "hugs", fx: "hug" }, 23: { stat: "scans", fx: "scan" },
+  24: { stat: "mirrors", fx: "mirror" }, 25: { stat: "stickers", fx: "sticker" }, 26: { stat: "photos", fx: "photo" }, 27: { stat: "rockets", fx: "rocket" },
+  28: { stat: "fishgifts", fx: "fishgift" }, 29: { stat: "threads", fx: "thread" }, 30: { stat: "swords", fx: "sword" }, 31: { stat: "sisters", fx: "sister" },
 };
 // trophée « 3 étoiles » de chaque jeu du jour
 const STAR_TROPHIES = {
   1: "enfantnuit", 2: "souffle", 3: "chromatique", 4: "glisse", 5: "rythme", 6: "alchimiste",
-  7: "festin", 8: "charmeur", 9: "jardinier", 10: "astronome", 11: "veilleur", 12: "enqueteur", 13: "berserker", 14: "abyssal", 15: "premieregoutte", 16: "survivant", 17: "griffe", 18: "roiduel", 19: "chateau", 20: "ficelle", 21: "astral", 22: "nounou", 23: "robot",
+  7: "festin", 8: "charmeur", 9: "jardinier", 10: "astronome", 11: "veilleur", 12: "enqueteur", 13: "berserker", 14: "abyssal", 15: "premieregoutte", 16: "survivant", 17: "griffe", 18: "roiduel", 19: "chateau", 20: "ficelle", 21: "astral", 22: "nounou", 23: "robot", 24: "artiste", 25: "album", 26: "pongiste", 27: "pyro", 28: "maitrepecheur", 29: "tisserand", 30: "forgeron",
 };
 
 function findByPseudo(pseudo) {
@@ -145,6 +147,23 @@ app.post("/api/drawing", (req, res) => {
   store.save();
   io.emit("player:update", publicPlayer(p));
   res.json({ ok: true });
+});
+
+// l'autoportrait du jour 24, exposé au musée
+app.post("/api/portrait", (req, res) => {
+  const p = authPlayer(req.body);
+  if (!p) return res.status(401).json({ error: "Non autorisé." });
+  const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(req.body.image || "");
+  if (!m) return res.status(400).json({ error: "Image invalide." });
+  const buf = Buffer.from(m[1], "base64");
+  if (buf.length > 2 * 1024 * 1024) return res.status(413).json({ error: "Image trop lourde." });
+  const file = `portrait-${p.id}-${crypto.randomBytes(4).toString("hex")}.png`;
+  fs.writeFileSync(path.join(store.DRAW_DIR, file), buf);
+  if (p.portrait) fs.rm(path.join(store.DRAW_DIR, p.portrait), { force: true }, () => {});
+  p.portrait = file;
+  store.save();
+  io.emit("player:update", publicPlayer(p));
+  res.json({ ok: true, file });
 });
 
 app.post("/api/drawing/delete", (req, res) => {

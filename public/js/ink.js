@@ -436,7 +436,56 @@ window.Ink = (() => {
   // ---------- Décorations (débloquées par les trophées) ----------
 
   function wearBack(ctx, item, cx, cy, t, face) {
-    if (item === "pendentif") {
+    if (item === "cadre") {
+      // un cadre doré, comme si l'Enxor posait pour son portrait
+      ctx.save();
+      ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 5;
+      ctx.strokeRect(cx - 27, cy - 34, 54, 62);
+      ctx.strokeStyle = "#8a6a28"; ctx.lineWidth = 1.5; ctx.strokeRect(cx - 30, cy - 37, 60, 68);
+      ctx.restore();
+    } else if (item === "fusee") {
+      ctx.save();
+      const bx = cx - face * 16, by = cy - 4;
+      ctx.fillStyle = "#b3261e"; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(bx - 5, by - 14, 10, 26, 3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#e9b04a"; ctx.beginPath(); ctx.moveTo(bx - 5, by - 14); ctx.lineTo(bx, by - 22); ctx.lineTo(bx + 5, by - 14); ctx.fill(); ctx.stroke();
+      const fl = 6 + Math.sin(t * 30) * 3;
+      ctx.fillStyle = "#ffd84a"; ctx.beginPath(); ctx.moveTo(bx - 4, by + 12); ctx.lineTo(bx, by + 12 + fl); ctx.lineTo(bx + 4, by + 12); ctx.fill();
+      ctx.restore();
+    } else if (item === "canne") {
+      ctx.save();
+      ctx.strokeStyle = "#6b4426"; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(cx - face * 14, cy + 18); ctx.lineTo(cx + face * 10, cy - 44); ctx.stroke();
+      ctx.strokeStyle = "rgba(239,229,208,.7)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(cx + face * 10, cy - 44); ctx.quadraticCurveTo(cx + face * 26, cy - 30, cx + face * 24, cy - 8 + Math.sin(t * 2) * 3); ctx.stroke();
+      ctx.fillStyle = "#b3261e"; ctx.beginPath(); ctx.arc(cx + face * 24, cy - 6 + Math.sin(t * 2) * 3, 2.5, 0, TAU); ctx.fill();
+      ctx.restore();
+    } else if (item === "pelote") {
+      ctx.save();
+      const px = cx - face * 18, py = cy + 10;
+      ctx.fillStyle = "#d36b9c"; ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(px, py, 9, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "rgba(29,26,32,.4)"; ctx.lineWidth = 1;
+      for (const a of [-0.6, 0.2, 1]) { ctx.beginPath(); ctx.ellipse(px, py, 9, 4, a, 0, TAU); ctx.stroke(); }
+      ctx.strokeStyle = "#d36b9c"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px + 8, py + 3); ctx.quadraticCurveTo(px + 20, py + 16, px + 30, py + 12 + Math.sin(t * 3) * 3); ctx.stroke();
+      ctx.restore();
+    } else if (item === "epee") {
+      ctx.save();
+      ctx.translate(cx - face * 10, cy); ctx.rotate(face * 0.5);
+      ctx.fillStyle = "#c9d2d9"; ctx.strokeStyle = INK; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(-3, -42); ctx.lineTo(0, -48); ctx.lineTo(3, -42); ctx.lineTo(3, 0); ctx.lineTo(-3, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#c9a24a"; ctx.fillRect(-9, 0, 18, 4); ctx.strokeRect(-9, 0, 18, 4);
+      ctx.fillStyle = "#6b4426"; ctx.fillRect(-2, 4, 4, 12);
+      ctx.restore();
+    } else if (item === "soeurs") {
+      // écharpe violette aux deux pans, nouée par un cœur
+      ctx.save();
+      ctx.fillStyle = "#b48be0"; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(cx, cy + 9, 15, 5, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      for (const s of [-1, 1]) { const w = Math.sin(t * 4 + s) * 2; ctx.beginPath(); ctx.moveTo(cx + s * 4, cy + 11); ctx.lineTo(cx + s * 10 + w, cy + 28); ctx.lineTo(cx + s * 3 + w, cy + 29); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+      heart(ctx, cx, cy + 10, 3.5, "#f2c1cf");
+      ctx.restore();
+    } else if (item === "pendentif") {
       ctx.save();
       ctx.strokeStyle = "#c9a24a"; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(cx - 10, cy - 4); ctx.lineTo(cx + face * 2, cy + 12); ctx.lineTo(cx + 10, cy - 4); ctx.stroke();
@@ -614,6 +663,23 @@ window.Ink = (() => {
   }
 
   function wearFace(ctx, item, cx, cy, face) {
+    if (item === "pansement") {
+      ctx.save();
+      ctx.translate(cx + face * 9, cy + 2); ctx.rotate(-0.4);
+      ctx.fillStyle = "#ffffff"; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = (k * Math.PI) / 5 - Math.PI / 2, rr = k % 2 ? 3 : 6.5; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.fill();
+      ctx.fillStyle = "#f2c94c"; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = (k * Math.PI) / 5 - Math.PI / 2, rr = k % 2 ? 2 : 5; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.fill();
+      ctx.restore();
+      return;
+    }
+    if (item === "lunettes3d") {
+      ctx.save();
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.8; ctx.fillStyle = "#f2ead8";
+      ctx.beginPath(); ctx.roundRect(cx - 15 + face * 2.5, cy - 9, 30, 11, 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "rgba(230,60,60,.8)"; ctx.fillRect(cx - 12 + face * 2.5, cy - 7, 10, 7);
+      ctx.fillStyle = "rgba(60,200,230,.8)"; ctx.fillRect(cx + 2 + face * 2.5, cy - 7, 10, 7);
+      ctx.restore();
+      return;
+    }
     if (item === "masquecuir") {
       ctx.save();
       ctx.fillStyle = "#1c1a22"; ctx.strokeStyle = "#5a5560"; ctx.lineWidth = 1.2;
@@ -761,6 +827,31 @@ window.Ink = (() => {
       ctx.beginPath(); ctx.moveTo(cx - 11, top + 1); ctx.quadraticCurveTo(cx + face * 6, top - 20, cx + face * 14, top - 30); ctx.quadraticCurveTo(cx + 4, top - 12, cx + 11, top + 1); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#e9b04a";
       ctx.beginPath(); ctx.arc(cx + face * 2, top - 10, 2.2, 0, TAU); ctx.fill();
+    } else if (item === "antenne") {
+      ctx.strokeStyle = "#5a5560"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx - 2, top + 2); ctx.lineTo(cx - 14, top - 24); ctx.moveTo(cx + 2, top + 2); ctx.lineTo(cx + 16, top - 22); ctx.stroke();
+      ctx.fillStyle = "#3b3440"; ctx.beginPath(); ctx.ellipse(cx, top + 2, 8, 4, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = Math.sin(t * 6) > 0 ? "#ff4a4a" : "#5a1622";
+      ctx.beginPath(); ctx.arc(cx - 14, top - 25, 2.5, 0, TAU); ctx.arc(cx + 16, top - 23, 2.5, 0, TAU); ctx.fill();
+    } else if (item === "poissontete") {
+      ctx.save(); ctx.translate(cx, top - 4); ctx.rotate(Math.sin(t * 3) * 0.15);
+      ctx.fillStyle = "#e0662f";
+      ctx.beginPath(); ctx.ellipse(0, 0, 15, 7, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-13, 0); ctx.lineTo(-22, -7); ctx.lineTo(-22, 7); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(9, -2, 1.6, 0, TAU); ctx.fill();
+      ctx.restore();
+    } else if (item === "plumet") {
+      ctx.fillStyle = "#8a9096"; ctx.beginPath(); ctx.ellipse(cx, top + 1, 14, 5, 0, Math.PI, 0); ctx.fill(); ctx.stroke();
+      ctx.save(); ctx.translate(cx + face * 3, top - 3); ctx.rotate(-face * 0.4 + Math.sin(t * 2) * 0.1);
+      ctx.fillStyle = "#b3261e";
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-10, -14, -4, -30); ctx.quadraticCurveTo(8, -16, 0, 0); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    } else if (item === "couronne") {
+      ctx.fillStyle = "#e9b04a";
+      ctx.beginPath(); ctx.moveTo(cx - 14, top + 3); ctx.lineTo(cx - 14, top - 10); ctx.lineTo(cx - 7, top - 3); ctx.lineTo(cx, top - 14); ctx.lineTo(cx + 7, top - 3); ctx.lineTo(cx + 14, top - 10); ctx.lineTo(cx + 14, top + 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+      halo(ctx, "rgba(255,216,74,.4)", cx, top - 6, 18 + Math.sin(t * 3) * 3);
+      ctx.fillStyle = "#b3261e"; ctx.beginPath(); ctx.arc(cx, top - 3, 2.5, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#3e7cb1"; for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(cx + s * 9, top - 1, 1.8, 0, TAU); ctx.fill(); }
     } else if (item === "pachitete") {
       ctx.save(); ctx.translate(cx + face * 2, top - 6 + Math.sin(t * 3) * 1);
       ctx.fillStyle = "#f2c94c";
@@ -932,6 +1023,32 @@ window.Ink = (() => {
       } else if (item === "fiole") {
         ctx.fillStyle = i % 2 ? "rgba(124,209,90,.85)" : "rgba(180,139,224,.85)";
         ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, TAU); ctx.fill();
+      } else if (item === "reflets") {
+        ctx.fillStyle = "rgba(207,227,239,.9)";
+        ctx.save(); ctx.translate(x, y); ctx.rotate(t * 2 + i);
+        ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(3, 0); ctx.lineTo(0, 4); ctx.lineTo(-3, 0); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      } else if (item === "autocollants") {
+        ctx.fillStyle = ["#f2c94c", "#f2a0bd", "#8fc7e8", "#7cd15a", "#e0662f"][i];
+        ctx.save(); ctx.translate(x, y); ctx.rotate(t + i);
+        if (i % 2) { ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = (k * Math.PI) / 5, rr = k % 2 ? 1.6 : 4; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.fill(); }
+        else heart(ctx, 0, 0, 3.5, ctx.fillStyle);
+        ctx.restore();
+      } else if (item === "etincelles") {
+        ctx.strokeStyle = ["#ffd84a", "#e0662f", "#fff1b0"][i % 3]; ctx.lineWidth = 1.2;
+        for (let k = 0; k < 4; k++) { const a = (k * Math.PI) / 2 + t; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 4, y + Math.sin(a) * 4); ctx.stroke(); }
+      } else if (item === "filrouge") {
+        // un fil rouge qui ondule autour de l'Enxor
+        if (i === 0) {
+          ctx.globalAlpha = 0.9; ctx.strokeStyle = "#b3261e"; ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let k = 0; k <= 40; k++) { const a = (k / 40) * TAU; ctx.lineTo(cx + Math.cos(a) * (24 + Math.sin(a * 3 + t * 2) * 3), cy + 4 + Math.sin(a) * (10 + Math.cos(a * 2 + t) * 2)); }
+          ctx.stroke();
+        }
+      } else if (item === "confettis") {
+        const yy = cy - 30 + ((t * 30 + i * 13) % 60);
+        ctx.fillStyle = ["#e0662f", "#5bb3a0", "#d36b9c", "#e9b04a", "#3e7cb1"][i];
+        ctx.save(); ctx.translate(cx - 24 + i * 12, yy); ctx.rotate(t * 4 + i); ctx.fillRect(-2, -1, 4, 2.5); ctx.restore();
       } else if (item === "pachis") {
         const a = t * 1.5 + (i / 5) * TAU, px = cx + Math.cos(a) * 26, py = cy + 4 + Math.sin(a) * 10;
         ctx.globalAlpha = 1;
