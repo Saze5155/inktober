@@ -200,6 +200,7 @@
       S.players.set(p.id, p);
       if (S.me && p.id === S.me.id) Object.assign(S.me, p);
       rebuildWorld();
+      if (inCabin() && cabinOwner()?.id === p.id) updateRoomMenu();
       if (S.panel && S.panel.type !== "source") renderPanel();
     });
     socket.on("chat", ({ id, text }) => {
@@ -337,7 +338,31 @@
     updateHelp();
   }
 
+  // dans une cabane : un menu pour se téléporter directement dans la pièce de son choix
+  function updateRoomMenu() {
+    const sel = $("room-go");
+    const owner = inCabin() && cabinOwner();
+    sel.hidden = !owner;
+    if (!owner) return;
+    const opts = [new Option(`🚪 Aller à une pièce…`, ""), new Option("L'entrée", "0")];
+    for (let d = 1; d <= roomsOpen(owner); d++) opts.push(new Option(`Jour ${d} · ${THEMES[d - 1]}${owner.drawings[d] ? " 🖼" : ""}`, String(d)));
+    sel.replaceChildren(...opts);
+  }
+  $("room-go").addEventListener("change", (e) => {
+    const sel = e.target, d = Number(sel.value);
+    sel.value = "";
+    sel.blur();
+    const m = me();
+    if (!m || !inCabin() || Number.isNaN(d) || sel.options.length < 2) return;
+    Object.assign(m, { x: d === 0 ? 150 : d * I.RW + I.RW / 2, y: I.FY, face: 1 });
+    S.target = S.pending = null;
+    S.footprints = [];
+    Sound.play("door", 0.5);
+    sendMove(true);
+  });
+
   function updateHelp() {
+    updateRoomMenu();
     $("hud-help").innerHTML = inCabin()
       ? "Q / D ou flèches · clic pour marcher · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes"
       : "ZQSD / clic pour bouger · <b>Maj</b> courir · <b>E</b> interagir · <b>Entrée</b> parler · <b>1-6</b> emotes · <b>M</b> carte · <b>J</b> quêtes · <b>B</b> bestiaire";
