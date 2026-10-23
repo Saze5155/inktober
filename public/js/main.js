@@ -457,7 +457,7 @@
     if (lastT) watchPerf((t - lastT) * 1000);
     const dt = Math.min(0.05, t - lastT || 0);
     lastT = t;
-    if (!S.game) {
+    if (!S.game && !S.museum) {
       update(dt, t);
       render(t);
     }
@@ -1175,7 +1175,7 @@
   // ---------- Contrôles ----------
 
   window.addEventListener("keydown", (e) => {
-    if (!S.me || !$("login").hidden) return;
+    if (!S.me || !$("login").hidden || S.museum) return;
     if (S.game) {
       if (e.key === "Escape") closeGame();
       return;
@@ -1283,7 +1283,7 @@
     if (it.kind === "seat") return toggleSeat(it.seat);
     if (it.kind !== "frame") Sound.play("click");
     if (it.kind === "cabin") enterCabin(it.id);
-    else if (it.kind === "house" && S.me.owner) enterCabin(S.me.id);
+    else if (it.kind === "house" && S.me.owner && !museumOpen()) openPanel({ type: "house" });
     else if (it.kind === "exit") exitCabin();
     else if (it.kind === "frame" && cabinOwner()?.id !== S.me.id) openLightbox("/drawings/" + cabinOwner().drawings[it.day]);
     else openPanel(it.kind === "frame" ? { type: "frame", day: it.day } : { type: it.kind });
@@ -1690,12 +1690,36 @@
   }
 
   function renderHouse(body) {
-    const text = museumOpen()
-      ? "Les portes sont ouvertes. Le musée de tous vos dessins arrive très bientôt ici."
+    const open = museumOpen();
+    const text = open
+      ? "Les portes sont grandes ouvertes : le musée de l'encre expose tous les dessins du mois, ceux de toute la DreamTeam. Les autoportraits sont dans le hall, et la statue du champion du tournoi aussi."
       : S.me.owner
-        ? "C'est chez toi. Personne d'autre ne peut entrer avant le 31 octobre : c'est ici qu'ouvrira le musée de tous les dessins."
+        ? "C'est chez toi. Personne d'autre ne peut entrer avant le 31 octobre : ce jour-là, la maison devient le musée de tous les dessins. Tu peux déjà jeter un œil."
         : "La porte est condamnée. Une vieille pancarte dit : « Ouverture le 31 octobre ». On entend des pages qu'on tourne à l'intérieur…";
-    body.append(el("p", { class: "eyebrow", text: "Grande maison" }), el("h2", { class: "script", text: "La Canne À Pêche" }), el("p", { class: "lore", text }));
+    body.append(
+      el("p", { class: "eyebrow", text: open ? "Le musée de l'encre" : "Grande maison" }),
+      el("h2", { class: "script", text: "La Canne À Pêche" }),
+      el("p", { class: "lore", text }),
+      el("div", { class: "actions" },
+        (open || S.me.owner) && el("button", { class: "btn", text: open ? "Visiter le musée" : "Aperçu du musée", onclick: openMuseum }),
+        S.me.owner && el("button", { class: "btn ghost", text: "Mes pièces (accrocher mes dessins)", onclick: () => { closePanel(); enterCabin(S.me.id); } })),
+    );
+  }
+
+  // le musée en 3D (public/js/museum.js), ouvert le 31 octobre
+  async function openMuseum() {
+    closePanel();
+    S.keys.clear();
+    S.museum = true;
+    Sound.setMood("inside");
+    try {
+      const owner = [...S.players.values()].find((p) => p.owner);
+      await Museum.open({ players: [...S.players.values()], themes: THEMES, ownerName: owner?.pseudo, onClose: () => { S.museum = false; } }); // l'ambiance du lieu revient toute seule
+    } catch (err) {
+      S.museum = false;
+      toast("Le musée n'a pas pu s'ouvrir (connexion ?). Réessaie dans un instant.");
+      console.error(err);
+    }
   }
 
   function openLightbox(src) {

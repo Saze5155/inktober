@@ -375,3 +375,17 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px;
 
 .lightbox { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .88); cursor: zoom-out; padding: 24px; }
 .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+
+/* ---------- Le musée en 3D (31 octobre) ---------- */
+.museum { position: fixed; inset: 0; z-index: 60; background: #1a1410; }
+.museum canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+.museum canvas:active { cursor: grabbing; }
+.museum-hud { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; gap: 12px; align-items: center; pointer-events: none; }
+.museum-hud > * { pointer-events: auto; }
+.museum-where { flex: 1; text-align: center; color: #efe5d0; font-weight: 800; font-size: 18px; text-shadow: 0 2px 6px rgba(0, 0, 0, .8); }
+.museum-go { background: rgba(20, 16, 12, .85); color: #efe5d0; border: 1px solid #c9a24a; border-radius: 10px; padding: 8px 10px; font: inherit; }
+.museum-help { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: rgba(239, 229, 208, .75); font-size: 14px; text-shadow: 0 1px 4px #000; pointer-events: none; }
+.museum-view { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 14px; background: rgba(0, 0, 0, .88); padding: 24px; }
+.museum-view[hidden] { display: none; }
+.museum-view img { max-width: min(90vw, 1100px); max-height: 74vh; border: 10px solid #c9a24a; border-radius: 4px; background: #efe5d0; }
+.museum-view p { color: #efe5d0; font-size: 18px; font-weight: 700; margin: 0; text-align: center; }
