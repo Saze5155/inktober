@@ -180,7 +180,7 @@
         ctx.fillStyle = "#3e5a8a"; ctx.fillRect(908, 418, 114, 18);
         ctx.strokeStyle = "#3b3532"; ctx.lineWidth = 5; for (const y of [440, 500]) { ctx.beginPath(); ctx.moveTo(900, y); ctx.lineTo(1030, y); ctx.stroke(); }
         // le forgeron
-        ctx.save(); ctx.translate(860, 300); ctx.scale(2.1, 2.1);
+        ctx.save(); ctx.translate(848, 470); ctx.scale(1.9, 1.9);
         Ink.enxor(ctx, 0, 0, t, { seed: 30, color: "#e0662f", face: -1, wear: { head: "casque", back: "bouclier" } });
         ctx.restore();
         // la lame selon l'étape
