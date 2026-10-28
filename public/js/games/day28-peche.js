@@ -5,12 +5,13 @@
   const { INK, PAPER } = Ink;
   const AW = 1100, AH = 680;
   const BAR = { x: 820, y: 110, w: 70, h: 460 };
+  // réglés par simulation d'un joueur humain (réaction 0,2 s) : ~100, 98, 88, 78 et 54 % de prises par essai
   const FISH = [
     { name: "Gardon d'encre", color: "#8fa8b8", zone: 120, calm: 1.0, dart: 0.0, speed: 0.6, size: 0.8, lore: "Le premier poisson de tout pêcheur." },
-    { name: "Perche du Seuil", color: "#5b8c5a", zone: 110, calm: 0.7, dart: 0.25, speed: 0.9, size: 0.9, lore: "Elle aime les eaux grises de la frontière." },
-    { name: "Anguille de Rive-Basse", color: "#3b3440", zone: 100, calm: 0.4, dart: 0.6, speed: 1.3, size: 1.2, lore: "Glissante, nerveuse, imprévisible." },
-    { name: "Brochet de Cendre", color: "#8a6a48", zone: 92, calm: 0.3, dart: 0.5, speed: 1.6, size: 1.3, lore: "Il a des dents comme des braises." },
-    { name: "Le Léviathan d'Abyssara", color: "#1d4a5a", zone: 84, calm: 0.2, dart: 0.8, speed: 1.9, size: 1.8, lore: "On dit qu'il a avalé un phare humain." },
+    { name: "Perche du Seuil", color: "#5b8c5a", zone: 112, calm: 0.7, dart: 0.25, speed: 0.9, size: 0.9, lore: "Elle aime les eaux grises de la frontière." },
+    { name: "Anguille de Rive-Basse", color: "#3b3440", zone: 106, calm: 0.5, dart: 0.45, speed: 1.15, size: 1.2, lore: "Glissante, nerveuse, imprévisible." },
+    { name: "Brochet de Cendre", color: "#8a6a48", zone: 100, calm: 0.4, dart: 0.45, speed: 1.35, size: 1.3, lore: "Il a des dents comme des braises." },
+    { name: "Le Léviathan d'Abyssara", color: "#1d4a5a", zone: 96, calm: 0.3, dart: 0.55, speed: 1.5, size: 1.8, lore: "On dit qu'il a avalé un phare humain." },
   ];
 
   Games.register(28, {
